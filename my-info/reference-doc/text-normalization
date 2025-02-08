@@ -1,0 +1,8 @@
+Optionally, you can unzip ttsfrd resouce and install ttsfrd package for better text normalization performance.
+
+Notice that this step is not necessary. If you do not install ttsfrd package, we will use WeTextProcessing by default.
+
+cd pretrained_models/CosyVoice-ttsfrd/
+unzip resource.zip -d .
+pip install ttsfrd_dependency-0.1-py3-none-any.whl
+pip install ttsfrd-0.4.2-cp310-cp310-linux_x86_64.whl

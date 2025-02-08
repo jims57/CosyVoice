@@ -1,0 +1,48 @@
+if torch.cuda.is_available() is False and (load_jit is True or load_trt is True or fp16 is True):
+    load_jit, load_trt, fp16 = False, False, False
+    logging.warning('no cuda device, set load_jit/load_trt/fp16 to False')
+
+
+
+Let me explain each parameter and when you should use them:
+load_jit (JIT = Just In Time compilation):
+When set to True, it loads optimized JIT-compiled versions of certain model components (text encoder, LLM, and flow encoder)
+JIT compilation can improve inference speed by optimizing the model execution path
+You should set this to True when:
+You're running inference on GPU
+You want better performance/speed
+You don't need model flexibility (JIT models are less flexible for modifications)
+load_trt (TRT = TensorRT):
+When True, it loads TensorRT-optimized versions of the flow decoder/estimator
+TensorRT is NVIDIA's deep learning inference optimizer that can significantly improve performance
+You should set this to True when:
+You're running on NVIDIA GPU
+Maximum inference speed is critical
+You're doing production deployment
+You have TensorRT properly installed
+fp16 (16-bit floating point):
+When True, the model runs in half-precision (FP16) instead of full precision (FP32)
+FP16 reduces memory usage and can improve speed, with a small potential cost to accuracy
+You should set this to True when:
+You're running on modern NVIDIA GPU (Volta architecture or newer)
+You want to reduce memory usage
+You need faster inference and can accept slight precision loss
+You're using either load_jit or load_trt
+
+
+Important notes from the code:
+if torch.cuda.is_available() is False and (load_jit is True or load_trt is True or fp16 is True):
+    load_jit, load_trt, fp16 = False, False, False
+    logging.warning('no cuda device, set load_jit/load_trt/fp16 to False')
+
+- All these optimizations require CUDA/GPU
+The code automatically disables these features if no CUDA device is available
+Recommended configurations:
+For development/testing:
+cosyvoice = CosyVoice2('model_dir', load_jit=False, load_trt=False, fp16=False)
+
+For basic production with GPU:
+cosyvoice = CosyVoice2('model_dir', load_jit=True, load_trt=True, fp16=True)
+
+For maximum performance in production:
+cosyvoice = CosyVoice2('model_dir', load_jit=True, load_trt=True, fp16=True)
