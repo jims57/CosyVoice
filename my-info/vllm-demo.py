@@ -27,10 +27,11 @@ from cosyvoice.cli.cosyvoice import CosyVoice2
 from cosyvoice.utils.file_utils import load_wav
 import torchaudio
 from fastapi import FastAPI, BackgroundTasks
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 import os
 import uuid
 import time
+import io
 
 # Global variables for model and prompt (initialized once)
 app = FastAPI()
@@ -69,9 +70,9 @@ def cleanup_file(file_path: str):
         os.remove(file_path)
 
 @app.get("/tts")
-async def text_to_speech(text_content: str, background_tasks: BackgroundTasks):
+async def text_to_speech(text_content: str):
     """
-    TTS API endpoint that accepts text_content and returns generated audio
+    TTS API endpoint that streams audio chunks as they're generated
     """
     global cosyvoice, prompt_speech_16k, prompt_text
     
@@ -82,63 +83,74 @@ async def text_to_speech(text_content: str, background_tasks: BackgroundTasks):
     if cosyvoice is None or prompt_speech_16k is None:
         return {"error": "Model not initialized"}
     
-    try:
-        # Generate a unique filename for this request
-        output_filename = f"tts_output_{uuid.uuid4().hex}.wav"
-        
-        # Time before inference
-        pre_inference_time = time.time()
-        print(f"[TTS] Pre-processing time: {(pre_inference_time - request_start_time)*1000:.2f}ms")
-        
-        # Run TTS inference with streaming - save each chunk separately
-        inference_start_time = time.time()
-        print(f"[TTS] Starting inference at: {time.strftime('%H:%M:%S.%f')[:-3]}")
-        
-        # Create generated_wavs folder if it doesn't exist
-        os.makedirs("generated_wavs", exist_ok=True)
-        
-        audio_chunks = []
-        chunk_files = []
-        for i, j in enumerate(cosyvoice.inference_zero_shot(text_content, prompt_text, prompt_speech_16k, stream=True)):
-            # Save each chunk as separate file in generated_wavs folder
-            chunk_filename = f"generated_wavs/chunk_{i+1}.wav"
-            torchaudio.save(chunk_filename, j['tts_speech'], cosyvoice.sample_rate)
-            chunk_files.append(chunk_filename)
+    def generate_audio_chunks():
+        try:
+            # Time before inference
+            pre_inference_time = time.time()
+            pre_processing_duration = (pre_inference_time - request_start_time) * 1000
+            print(f"[TTS] Pre-processing time: {pre_processing_duration:.2f}ms")
             
-            audio_chunks.append(j['tts_speech'])
-            print(f"[TTS] Received chunk {i+1}, saved as {chunk_filename}")
-        
-        # Concatenate all chunks for final output
-        if audio_chunks:
-            import torch
-            full_audio = torch.cat(audio_chunks, dim=1)
-            torchaudio.save(output_filename, full_audio, cosyvoice.sample_rate)
+            # Run TTS inference with streaming
+            inference_start_time = time.time()
+            print(f"[TTS] Starting inference at: {time.strftime('%H:%M:%S.%f')[:-3]}")
             
-            # Only cleanup the main output file, keep chunk files
-            # for chunk_file in chunk_files:
-            #     background_tasks.add_task(cleanup_file, chunk_file)
-        
-        # Time for file operations
-        file_ops_time = time.time()
-        file_ops_duration = (file_ops_time - inference_start_time) * 1000
-        print(f"[TTS] File operations time: {file_ops_duration:.2f}ms")
-        
-        # Total time
-        total_time = (time.time() - request_start_time) * 1000
-        print(f"[TTS] Total request time: {total_time:.2f}ms")
-        print(f"[TTS] Response ready at: {time.strftime('%H:%M:%S.%f')[:-3]}")
-        
-        # Return the audio file
-        return FileResponse(
-            path=output_filename,
-            media_type="audio/wav",
-            filename=output_filename
-        )
-        
-    except Exception as e:
-        error_time = (time.time() - request_start_time) * 1000
-        print(f"[TTS] Error after {error_time:.2f}ms: {str(e)}")
-        return {"error": f"TTS generation failed: {str(e)}"}
+            first_chunk_generated = False
+            first_chunk_time = None
+            chunk_count = 0
+            
+            # Create generated_wavs folder if it doesn't exist
+            os.makedirs("generated_wavs", exist_ok=True)
+            
+            for i, j in enumerate(cosyvoice.inference_zero_shot(text_content, prompt_text, prompt_speech_16k, stream=True)):
+                chunk_start_time = time.time()
+                chunk_count += 1
+                
+                # Save each chunk as separate file in generated_wavs folder
+                chunk_filename = f"generated_wavs/chunk_{i+1}.wav"
+                torchaudio.save(chunk_filename, j['tts_speech'], cosyvoice.sample_rate)
+                
+                # Record first chunk timing
+                if not first_chunk_generated:
+                    first_chunk_time = (chunk_start_time - inference_start_time) * 1000
+                    print(f"[TTS] First chunk generated time: {first_chunk_time:.2f}ms")
+                    first_chunk_generated = True
+                
+                # Convert audio tensor to wav bytes for streaming
+                buffer = io.BytesIO()
+                torchaudio.save(buffer, j['tts_speech'], cosyvoice.sample_rate, format="wav")
+                wav_bytes = buffer.getvalue()
+                buffer.close()
+                
+                chunk_processing_time = (time.time() - chunk_start_time) * 1000
+                total_time_so_far = (time.time() - request_start_time) * 1000
+                
+                print(f"[TTS] Chunk {i+1} processed in {chunk_processing_time:.2f}ms, total time: {total_time_so_far:.2f}ms")
+                print(f"[TTS] Chunk {i+1} saved as {chunk_filename}")
+                
+                # Yield the chunk immediately to client
+                yield wav_bytes
+            
+            # End of inference timing
+            inference_end_time = time.time()
+            total_inference_time = (inference_end_time - inference_start_time) * 1000
+            total_request_time = (inference_end_time - request_start_time) * 1000
+            
+            print(f"[TTS] Inference completed in: {total_inference_time:.2f}ms")
+            print(f"[TTS] Total chunks generated: {chunk_count}")
+            print(f"[TTS] Total request time: {total_request_time:.2f}ms")
+            print(f"[TTS] Response completed at: {time.strftime('%H:%M:%S.%f')[:-3]}")
+            
+        except Exception as e:
+            error_time = (time.time() - request_start_time) * 1000
+            print(f"[TTS] Error after {error_time:.2f}ms: {str(e)}")
+            yield b"Error: TTS generation failed"
+    
+    # Return streaming response
+    return StreamingResponse(
+        generate_audio_chunks(),
+        media_type="audio/wav",
+        headers={"Content-Disposition": "attachment; filename=tts_stream.wav"}
+    )
 
 @app.get("/")
 async def root():
