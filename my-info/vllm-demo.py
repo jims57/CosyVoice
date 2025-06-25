@@ -26,7 +26,7 @@ ModelRegistry.register_model("CosyVoice2ForCausalLM", CosyVoice2ForCausalLM)
 from cosyvoice.cli.cosyvoice import CosyVoice2
 from cosyvoice.utils.file_utils import load_wav
 import torchaudio
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import FileResponse
 import os
 import uuid
@@ -51,8 +51,13 @@ async def startup_event():
     
     print("Model loaded successfully!")
 
+def cleanup_file(file_path: str):
+    """Background task to clean up temporary files"""
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
 @app.get("/tts")
-async def text_to_speech(text_content: str):
+async def text_to_speech(text_content: str, background_tasks: BackgroundTasks):
     """
     TTS API endpoint that accepts text_content and returns generated audio
     """
@@ -70,12 +75,14 @@ async def text_to_speech(text_content: str):
             torchaudio.save(output_filename, j['tts_speech'], cosyvoice.sample_rate)
             break  # Only take the first result
         
+        # Add cleanup task to background
+        background_tasks.add_task(cleanup_file, output_filename)
+        
         # Return the audio file
         return FileResponse(
             path=output_filename,
             media_type="audio/wav",
-            filename=output_filename,
-            background=lambda: os.remove(output_filename) if os.path.exists(output_filename) else None
+            filename=output_filename
         )
         
     except Exception as e:
