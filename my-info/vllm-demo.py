@@ -26,22 +26,66 @@ ModelRegistry.register_model("CosyVoice2ForCausalLM", CosyVoice2ForCausalLM)
 from cosyvoice.cli.cosyvoice import CosyVoice2
 from cosyvoice.utils.file_utils import load_wav
 import torchaudio
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
+import os
+import uuid
 
-def main():
-    # Initialize CosyVoice2 with vllm enabled (key difference from demo.py)
-    cosyvoice = CosyVoice2('pretrained_models/CosyVoice2-0.5B', load_jit=True, load_trt=True, load_vllm=True, fp16=True)
+# Global variables for model and prompt (initialized once)
+app = FastAPI()
+cosyvoice = None
+prompt_speech_16k = None
+prompt_text = "Did you guys see the video of that dude who was at the gym who took his earbuds and just smacked them against the wall because they would not stay in his ear during his set? "
 
-    # Use the same prompt speech as demo.py
-    prompt_speech_16k = load_wav('./asset/man-short.wav', 16000)
-
-    # Use the same text content as demo.py
-    text_content = "Spring has arrived, flowers are blooming, birds are singing, and nature is full of life."
+@app.on_event("startup")
+async def startup_event():
+    """Initialize the model and prompt speech once when the app starts"""
+    global cosyvoice, prompt_speech_16k
     
-    prompt_text = "Did you guys see the video of that dude who was at the gym who took his earbuds and just smacked them against the wall because they would not stay in his ear during his set? "
+    print("Loading CosyVoice2 model with vllm...")
+    # Initialize CosyVoice2 with vllm enabled
+    cosyvoice = CosyVoice2('pretrained_models/CosyVoice2-0.5B', load_jit=True, load_trt=True, load_vllm=True, fp16=True)
+    
+    # Load prompt speech
+    prompt_speech_16k = load_wav('./asset/man-short.wav', 16000)
+    
+    print("Model loaded successfully!")
 
-    # Run inference with vllm
-    for i, j in enumerate(cosyvoice.inference_zero_shot(text_content, prompt_text, prompt_speech_16k, stream=False)):
-        torchaudio.save('vllm_zero_shot_{}.wav'.format(i), j['tts_speech'], cosyvoice.sample_rate)
+@app.get("/tts")
+async def text_to_speech(text_content: str):
+    """
+    TTS API endpoint that accepts text_content and returns generated audio
+    """
+    global cosyvoice, prompt_speech_16k, prompt_text
+    
+    if cosyvoice is None or prompt_speech_16k is None:
+        return {"error": "Model not initialized"}
+    
+    try:
+        # Generate a unique filename for this request
+        output_filename = f"tts_output_{uuid.uuid4().hex}.wav"
+        
+        # Run TTS inference
+        for i, j in enumerate(cosyvoice.inference_zero_shot(text_content, prompt_text, prompt_speech_16k, stream=False)):
+            torchaudio.save(output_filename, j['tts_speech'], cosyvoice.sample_rate)
+            break  # Only take the first result
+        
+        # Return the audio file
+        return FileResponse(
+            path=output_filename,
+            media_type="audio/wav",
+            filename=output_filename,
+            background=lambda: os.remove(output_filename) if os.path.exists(output_filename) else None
+        )
+        
+    except Exception as e:
+        return {"error": f"TTS generation failed: {str(e)}"}
+
+@app.get("/")
+async def root():
+    """Health check endpoint"""
+    return {"message": "CosyVoice TTS API is running"}
 
 if __name__ == '__main__':
-    main()
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8080)
