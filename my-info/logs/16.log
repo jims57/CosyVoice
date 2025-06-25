@@ -1,0 +1,25 @@
+INFO:     127.0.0.1:50310 - "GET /tts?text_content=Mom%27s+cooking+is+always+so+delicious%2C+full+of+warmth+and+love+from+home. HTTP/1.1" 200 OK
+[TTS] Pre-processing time: 0.88ms
+[TTS] Starting inference at: 16:56:44
+[TTS] Text normalization time: 0.02ms, got 1 chunks
+[TTS] Processing text chunk 1/1: Mom's cooking is always so delicious, full of warm...
+  0%|                                                                                                                 | 0/1 [00:00<?, ?it/s]2025-06-25 16:56:44,982 WARNING synthesis text Mom's cooking is always so delicious, full of warmth and love from home. too short than prompt text Did you guys see the video of that dude who was at the gym who took his earbuds and just smacked them against the wall because they would not stay in his ear during his set?, this may lead to bad performance
+2025-06-25 16:56:44,991 INFO synthesis text Mom's cooking is always so delicious, full of warmth and love from home.
+WARNING 06-25 16:56:44 [preprocess.py:63] Using None for EOS token id because tokenizer is not initialized
+INFO 06-25 16:56:45 [metrics.py:486] Avg prompt throughput: 0.2 tokens/s, Avg generation throughput: 0.1 tokens/s, Running: 1 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.1%, CPU KV cache usage: 0.0%.
+2025-06-25 16:56:45,426 INFO yield speech len 1.8, rtf 0.24158596992492676
+[TTS] First chunk generated time: 500.72ms
+[TTS] Chunk 1 (text chunk 1) processed in 2.11ms, total time: 503.74ms
+[TTS] Chunk 1 saved as generated_wavs/chunk_1.wav
+2025-06-25 16:56:45,633 INFO yield speech len 1.0, rtf 0.20485186576843262
+[TTS] Chunk 2 (text chunk 1) processed in 1.33ms, total time: 710.37ms
+[TTS] Chunk 2 saved as generated_wavs/chunk_2.wav
+2025-06-25 16:56:45,814 INFO yield speech len 1.0, rtf 0.17883777618408203
+[TTS] Chunk 3 (text chunk 1) processed in 1.34ms, total time: 890.92ms
+[TTS] Chunk 3 saved as generated_wavs/chunk_3.wav
+2025-06-25 16:56:46,000 INFO yield speech len 1.0, rtf 0.18415021896362305
+[TTS] Chunk 4 (text chunk 1) processed in 1.29ms, total time: 1076.71ms
+[TTS] Chunk 4 saved as generated_wavs/chunk_4.wav
+2025-06-25 16:56:46,114 INFO yield speech len 0.52, rtf 0.2156982055077186
+[TTS] Chunk 5 (text chunk 1) processed in 0.92ms, total time: 1190.13ms
+[TTS] Chunk 5 saved as generated_wavs/chunk_5.wav
