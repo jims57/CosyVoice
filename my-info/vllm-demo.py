@@ -90,28 +90,38 @@ async def text_to_speech(text_content: str, background_tasks: BackgroundTasks):
         pre_inference_time = time.time()
         print(f"[TTS] Pre-processing time: {(pre_inference_time - request_start_time)*1000:.2f}ms")
         
-        # Run TTS inference with streaming - collect all chunks
+        # Run TTS inference with streaming - save each chunk separately
         inference_start_time = time.time()
         print(f"[TTS] Starting inference at: {time.strftime('%H:%M:%S.%f')[:-3]}")
         
-        audio_chunks = []
-        for i, j in enumerate(cosyvoice.inference_zero_shot(text_content, prompt_text, prompt_speech_16k, stream=True)):
-            audio_chunks.append(j['tts_speech'])
-            print(f"[TTS] Received chunk {i+1}")
+        # Create generated_wavs folder if it doesn't exist
+        os.makedirs("generated_wavs", exist_ok=True)
         
-        # Concatenate all chunks
+        audio_chunks = []
+        chunk_files = []
+        for i, j in enumerate(cosyvoice.inference_zero_shot(text_content, prompt_text, prompt_speech_16k, stream=True)):
+            # Save each chunk as separate file in generated_wavs folder
+            chunk_filename = f"generated_wavs/chunk_{i+1}.wav"
+            torchaudio.save(chunk_filename, j['tts_speech'], cosyvoice.sample_rate)
+            chunk_files.append(chunk_filename)
+            
+            audio_chunks.append(j['tts_speech'])
+            print(f"[TTS] Received chunk {i+1}, saved as {chunk_filename}")
+        
+        # Concatenate all chunks for final output
         if audio_chunks:
             import torch
             full_audio = torch.cat(audio_chunks, dim=1)
             torchaudio.save(output_filename, full_audio, cosyvoice.sample_rate)
+            
+            # Only cleanup the main output file, keep chunk files
+            # for chunk_file in chunk_files:
+            #     background_tasks.add_task(cleanup_file, chunk_file)
         
         # Time for file operations
         file_ops_time = time.time()
         file_ops_duration = (file_ops_time - inference_start_time) * 1000
         print(f"[TTS] File operations time: {file_ops_duration:.2f}ms")
-        
-        # Add cleanup task to background
-        background_tasks.add_task(cleanup_file, output_filename)
         
         # Total time
         total_time = (time.time() - request_start_time) * 1000

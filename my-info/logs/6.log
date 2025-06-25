@@ -1,0 +1,35 @@
+[TTS] Request received at: 11:23:26
+[TTS] Pre-processing time: 0.07ms
+[TTS] Starting inference at: 11:23:26
+  0%|              | 0/1 [00:00<?, ?it/s]2025-06-25 11:23:27,231 INFO synthesis text After spending the entire weekend exploring various hidden gems around the city, trying out new cafes and vintage shops, I'm feeling incredibly refreshed and already planning my next spontaneous adventure for sure.
+WARNING 06-25 11:23:27 [preprocess.py:63] Using None for EOS token id because tokenizer is not initialized
+INFO 06-25 11:23:27 [metrics.py:486] Avg prompt throughput: 2.6 tokens/s, Avg generation throughput: 1.7 tokens/s, Running: 1 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.1%, CPU KV cache usage: 0.0%.
+2025-06-25 11:23:27,641 INFO yield speech len 1.8, rtf 0.22783438364664713
+[TTS] Received chunk 1
+2025-06-25 11:23:27,859 INFO yield speech len 1.0, rtf 0.21775031089782715
+[TTS] Received chunk 2
+2025-06-25 11:23:28,079 INFO yield speech len 1.0, rtf 0.2206590175628662
+[TTS] Received chunk 3
+2025-06-25 11:23:28,309 INFO yield speech len 1.0, rtf 0.22919607162475586
+[TTS] Received chunk 4
+2025-06-25 11:23:28,523 INFO yield speech len 1.0, rtf 0.21413135528564453
+[TTS] Received chunk 5
+2025-06-25 11:23:28,717 INFO yield speech len 1.0, rtf 0.19423866271972656
+[TTS] Received chunk 6
+2025-06-25 11:23:28,919 INFO yield speech len 1.0, rtf 0.20109987258911133
+[TTS] Received chunk 7
+2025-06-25 11:23:29,124 INFO yield speech len 1.0, rtf 0.20527887344360352
+[TTS] Received chunk 8
+2025-06-25 11:23:29,332 INFO yield speech len 1.0, rtf 0.20798039436340332
+[TTS] Received chunk 9
+2025-06-25 11:23:29,544 INFO yield speech len 1.0, rtf 0.21210312843322754
+[TTS] Received chunk 10
+2025-06-25 11:23:29,762 INFO yield speech len 1.0, rtf 0.2170863151550293
+[TTS] Received chunk 11
+2025-06-25 11:23:29,877 INFO yield speech len 0.32, rtf 0.361613929271698
+[TTS] Received chunk 12
+100%|██████| 1/1 [00:03<00:00,  3.23s/it]
+[TTS] File operations time: 3312.63ms
+[TTS] Total request time: 3312.79ms
+[TTS] Response ready at: 11:23:29
+INFO:     127.0.0.1:35750 - "GET /tts?text_content=After+spending+the+entire+weekend+exploring+various+hidden+gems+around+the+city%2C+trying+out+new+cafes+and+vintage+shops%2C+I%27m+feeling+incredibly+refreshed+and+already+planning+my+next+spontaneous+adventure+for+sure. HTTP/1.1" 200 OK
