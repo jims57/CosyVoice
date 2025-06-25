@@ -66,7 +66,8 @@ async def startup_event():
         cache_time = (time.time() - cache_start) * 1000
         print(f"Prompt audio cached in {cache_time:.2f}ms")
         
-        for i, j in enumerate(cosyvoice.inference_zero_shot("Hello world", "Hello", prompt_speech_16k, stream=False)):
+        # Warm up with longer text to prime VLLM for better performance
+        for i, j in enumerate(cosyvoice.inference_zero_shot("Did you guys see the video of that dude who was at the gym who took his earbuds and just smacked them against the wall because they would not stay in his ear during his set?", prompt_text, prompt_speech_16k, stream=True)):
             break  # Just run once to warm up
         warmup_time = (time.time() - warmup_start) * 1000
         print(f"Model pre-warmed in {warmup_time:.2f}ms")
@@ -121,37 +122,55 @@ def generate_audio_chunks(text_content, request_start_time):
             frontend_time = (time.time() - frontend_start) * 1000
             print(f"[TTS] Frontend processing time: {frontend_time:.2f}ms")
             
-            # Direct model inference
+            # Direct model inference with optimized streaming parameters
             model_start_time = time.time()
-            for model_output in cosyvoice.model.tts(**model_input, stream=True):
+            for model_output in cosyvoice.model.tts(**model_input, stream=True, speed=1.0):
                 chunk_start_time = time.time()
                 chunk_count += 1
                 
-                # Save each chunk as separate file in generated_wavs folder
-                chunk_filename = f"generated_wavs/chunk_{chunk_count}.wav"
-                torchaudio.save(chunk_filename, model_output['tts_speech'], cosyvoice.sample_rate)
-                
-                # Record first chunk timing
+                # For first chunk, yield immediately without file saving to reduce latency
                 if not first_chunk_generated:
                     first_chunk_time = (chunk_start_time - model_start_time) * 1000
                     print(f"[TTS] First chunk generated time: {first_chunk_time:.2f}ms")
                     first_chunk_generated = True
-                
-                # Convert audio tensor to wav bytes for streaming
-                buffer = io.BytesIO()
-                torchaudio.save(buffer, model_output['tts_speech'], cosyvoice.sample_rate, format="wav")
-                wav_bytes = buffer.getvalue()
-                buffer.close()
-                
-                chunk_processing_time = (time.time() - chunk_start_time) * 1000
-                total_time_so_far = (time.time() - request_start_time) * 1000
-                
-                print(f"[TTS] Chunk {chunk_count} processed in {chunk_processing_time:.2f}ms, total time: {total_time_so_far:.2f}ms")
-                print(f"[TTS] Chunk {chunk_count} saved as {chunk_filename}")
-                
-                # Yield the chunk immediately to client
-                yield wav_bytes
-                
+                    
+                    # Convert and yield first chunk immediately
+                    buffer = io.BytesIO()
+                    torchaudio.save(buffer, model_output['tts_speech'], cosyvoice.sample_rate, format="wav")
+                    wav_bytes = buffer.getvalue()
+                    buffer.close()
+                    
+                    # Save file in background after yielding
+                    chunk_filename = f"generated_wavs/chunk_{chunk_count}.wav"
+                    torchaudio.save(chunk_filename, model_output['tts_speech'], cosyvoice.sample_rate)
+                    
+                    chunk_processing_time = (time.time() - chunk_start_time) * 1000
+                    total_time_so_far = (time.time() - request_start_time) * 1000
+                    
+                    print(f"[TTS] Chunk {chunk_count} processed in {chunk_processing_time:.2f}ms, total time: {total_time_so_far:.2f}ms")
+                    print(f"[TTS] Chunk {chunk_count} saved as {chunk_filename}")
+                    
+                    # Yield first chunk immediately
+                    yield wav_bytes
+                else:
+                    # Normal processing for subsequent chunks
+                    chunk_filename = f"generated_wavs/chunk_{chunk_count}.wav"
+                    torchaudio.save(chunk_filename, model_output['tts_speech'], cosyvoice.sample_rate)
+                    
+                    # Convert audio tensor to wav bytes for streaming
+                    buffer = io.BytesIO()
+                    torchaudio.save(buffer, model_output['tts_speech'], cosyvoice.sample_rate, format="wav")
+                    wav_bytes = buffer.getvalue()
+                    buffer.close()
+                    
+                    chunk_processing_time = (time.time() - chunk_start_time) * 1000
+                    total_time_so_far = (time.time() - request_start_time) * 1000
+                    
+                    print(f"[TTS] Chunk {chunk_count} processed in {chunk_processing_time:.2f}ms, total time: {total_time_so_far:.2f}ms")
+                    print(f"[TTS] Chunk {chunk_count} saved as {chunk_filename}")
+                    
+                    yield wav_bytes
+        
         except Exception as direct_error:
             print(f"[TTS] Direct call failed: {direct_error}, falling back to inference_zero_shot")
             # Fallback to original method
