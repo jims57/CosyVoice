@@ -9,6 +9,7 @@ ModelRegistry.register_model("CosyVoice2ForCausalLM", CosyVoice2ForCausalLM)
 import torch
 import numpy as np
 import io
+import asyncio
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
@@ -46,6 +47,28 @@ def get_device():
         return 'mps'
     else:
         return 'cpu'
+
+def run_inference_sync(text):
+    """Synchronous inference function to be run in thread pool"""
+    global global_cosyvoice, global_prompt_speech_16k, global_normalized_prompt_text
+    
+    # Collect all audio chunks
+    audio_chunks = []
+    for i, j in enumerate(global_cosyvoice.inference_zero_shot(
+        text, 
+        global_normalized_prompt_text, 
+        global_prompt_speech_16k, 
+        zero_shot_spk_id='cached_prompt_spk', 
+        stream=True
+    )):
+        audio_chunks.append(j['tts_speech'])
+    
+    # Concatenate all chunks
+    if audio_chunks:
+        audio = torch.cat(audio_chunks, dim=1)
+        return audio
+    else:
+        return None
 
 # Initialize model on startup
 @app.on_event("startup")
@@ -114,21 +137,11 @@ async def generate_tts(request: TTSRequest):
         print(f"Time before inference: {elapsed_since_start:.2f} ms since start")
         
         try:
-            # Collect all audio chunks
-            audio_chunks = []
-            for i, j in enumerate(global_cosyvoice.inference_zero_shot(
-                request.text, 
-                global_normalized_prompt_text, 
-                global_prompt_speech_16k, 
-                zero_shot_spk_id='cached_prompt_spk', 
-                stream=True
-            )):
-                audio_chunks.append(j['tts_speech'])
+            # Run inference in thread pool to allow concurrency
+            loop = asyncio.get_event_loop()
+            audio = await loop.run_in_executor(None, run_inference_sync, request.text)
             
-            # Concatenate all chunks
-            if audio_chunks:
-                audio = torch.cat(audio_chunks, dim=1)
-            else:
+            if audio is None:
                 raise HTTPException(status_code=500, detail="No audio generated")
                 
         except Exception as inference_error:
