@@ -1,0 +1,1 @@
+curl -X POST "http://localhost:9003/tts" -H "Content-Type: application/json" -d '{"text": "我们的历史证明了我们的成就和失败", "audio_format": "mp3"}' --output output.mp3

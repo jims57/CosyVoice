@@ -1,0 +1,27 @@
+API start time: 20:51:03
+Generating audio for text: 青石板上泛着水光，雨丝斜斜地织着帘子。我撑一把油纸伞，踩着湿润的石板路，听脚步声在巷子里轻轻回响。
+Time before inference: 0.07 ms since start
+[TTS] Text normalization time: 0.03ms, got 1 chunks
+[TTS] Processing text chunk 1/1: 青石板上泛着水光，雨丝斜斜地织着帘子。我撑一把油纸伞，踩着湿润的石板路，听脚步声在巷子里轻轻回响。...
+  0%|                                                                                                                 | 0/1 [00:00<?, ?it/s]2025-06-25 20:51:03,339 WARNING synthesis text 青石板上泛着水光，雨丝斜斜地织着帘子。我撑一把油纸伞，踩着湿润的石板路，听脚步声在巷子里轻轻
+  响。 too short than prompt text Did you guys see the video of that dude who was at the gym who took his earbuds and just smacked them against the wall because they would not stay in his ear during his set?, this may lead to bad performance
+2025-06-25 20:51:03,348 INFO synthesis text 青石板上泛着水光，雨丝斜斜地织着帘子。我撑一把油纸伞，踩着湿润的石板路，听脚步声在巷子里轻轻回响
+
+WARNING 06-25 20:51:03 [preprocess.py:63] Using None for EOS token id because tokenizer is not initialized
+INFO 06-25 20:51:03 [metrics.py:486] Avg prompt throughput: 22.5 tokens/s, Avg generation throughput: 10.8 tokens/s, Running: 1 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.1%, CPU KV cache usage: 0.0%.
+2025-06-25 20:51:03,738 INFO yield speech len 1.8, rtf 0.21687189737955728
+2025-06-25 20:51:03,959 INFO yield speech len 1.0, rtf 0.22066545486450195
+2025-06-25 20:51:04,176 INFO yield speech len 1.0, rtf 0.21636223793029785
+2025-06-25 20:51:04,404 INFO yield speech len 1.0, rtf 0.22829198837280273
+2025-06-25 20:51:04,620 INFO yield speech len 1.0, rtf 0.21624493598937988
+2025-06-25 20:51:04,816 INFO yield speech len 1.0, rtf 0.19534683227539062
+2025-06-25 20:51:05,015 INFO yield speech len 1.0, rtf 0.19941997528076172
+2025-06-25 20:51:05,213 INFO yield speech len 1.0, rtf 0.19788694381713867
+2025-06-25 20:51:05,415 INFO yield speech len 1.0, rtf 0.2012476921081543
+2025-06-25 20:51:05,620 INFO yield speech len 1.0, rtf 0.2053673267364502
+2025-06-25 20:51:05,756 INFO yield speech len 0.56, rtf 0.24298770087105884
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:02<00:00,  2.43s/it]
+Time after inference: 2495.75 ms since start, 2495.68 ms since before inference
+Time to send first byte: 2556.78 ms since start, 61.03 ms since after inference
+Audio generated in 2.56 seconds
+INFO:     127.0.0.1:47792 - "POST /tts HTTP/1.1" 200 OK

@@ -1,0 +1,20 @@
+INFO:     127.0.0.1:46454 - "GET /tts?text_content=%E6%88%91%E4%BB%AC%E7%9A%84%E5%8E%86%E5%8F%B2%E8%AF%81%E6%98%8E%E4%BA%86%E6%88%91%E4%BB%AC%E7%9A%84%E6%88%90%E5%B0%B1%E5%92%8C%E5%A4%B1%E8%B4%A5 HTTP/1.1" 200 OK
+[TTS] Pre-processing time: 0.85ms
+[TTS] Starting inference at: 20:37:46
+[TTS] Text normalization time: 0.02ms, got 1 chunks
+[TTS] Processing text chunk 1/1: 我们的历史证明了我们的成就和失败...
+  0%|                                                                                                                 | 0/1 [00:00<?, ?it/s]
+2025-06-25 20:37:46,395 WARNING synthesis text 我们的历史证明了我们的成就和失败。 too short than prompt text Did you guys see the video of that dude who was at the gym who took his earbuds and just smacked them against the wall because they would not stay in his ear during his set?, this may lead to bad performance
+2025-06-25 20:37:46,396 INFO synthesis text 我们的历史证明了我们的成就和失败。
+WARNING 06-25 20:37:46 [preprocess.py:63] Using None for EOS token id because tokenizer is not initialized
+INFO 06-25 20:37:46 [metrics.py:486] Avg prompt throughput: 42.0 tokens/s, Avg generation throughput: 21.9 tokens/s, Running: 1 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.1%, CPU KV cache usage: 0.0%.
+2025-06-25 20:37:46,804 INFO yield speech len 1.8, rtf 0.2268381913503011
+[TTS] First chunk generated time: 460.15ms
+[TTS] Chunk 1 (text chunk 1) processed in 3.64ms, total time: 464.67ms
+[TTS] Chunk 1 saved as generated_wavs/chunk_1.wav
+2025-06-25 20:37:46,993 INFO yield speech len 1.0, rtf 0.18383073806762695
+[TTS] Chunk 2 (text chunk 1) processed in 1.40ms, total time: 650.53ms
+[TTS] Chunk 2 saved as generated_wavs/chunk_2.wav
+2025-06-25 20:37:47,103 INFO yield speech len 1.04, rtf 0.10470289450425367
+[TTS] Chunk 3 (text chunk 1) processed in 1.48ms, total time: 761.32ms
+[TTS] Chunk 3 saved as generated_wavs/chunk_3.wav
