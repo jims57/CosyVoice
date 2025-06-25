@@ -1,0 +1,14 @@
+INFO:     127.0.0.1:50610 - "GET /tts?text_content=After+spending+the+entire+weekend+exploring+various+hidden+gems+around+the+city%2C+trying+out+new+cafes+and+vintage+shops%2C+I%27m+feeling+incredibly+refreshed+and+already+planning+my+next+spontaneous+adventure+for+sure. HTTP/1.1" 200 OK
+[TTS] Pre-processing time: 0.69ms
+[TTS] Starting inference at: 15:47:26
+[TTS] Text normalization time: 0.03ms, got 1 chunks
+[TTS] Frontend processing time: 8.85ms
+WARNING 06-25 15:47:26 [preprocess.py:63] Using None for EOS token id because tokenizer is not initialized
+INFO 06-25 15:47:26 [metrics.py:486] Avg prompt throughput: 16.1 tokens/s, Avg generation throughput: 6.9 tokens/s, Running: 1 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.1%, CPU KV cache usage: 0.0%.
+[TTS] First chunk generated time: 391.97ms
+[TTS] Chunk 1 processed in 2.25ms, total time: 403.98ms
+[TTS] Chunk 1 saved as generated_wavs/chunk_1.wav
+[TTS] Inference completed in: 403.72ms
+[TTS] Total chunks generated: 1
+[TTS] Total request time: 404.46ms
+[TTS] Response completed at: 15:47:26

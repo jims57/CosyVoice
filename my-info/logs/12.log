@@ -1,0 +1,32 @@
+INFO:     127.0.0.1:55214 - "GET /tts?text_content=After+spending+the+entire+weekend+exploring+various+hidden+gems+around+the+city%2C+trying+out+new+cafes+and+vintage+shops%2C+I%27m+feeling+incredibly+refreshed+and+already+planning+my+next+spontaneous+adventure+for+sure. HTTP/1.1" 200 OK
+[TTS] Pre-processing time: 0.76ms
+[TTS] Starting inference at: 15:39:14
+[TTS] Text normalization time: 0.04ms
+[TTS] Frontend processing time: 2.81ms
+WARNING 06-25 15:39:14 [preprocess.py:63] Using None for EOS token id because tokenizer is not initialized
+INFO 06-25 15:39:14 [metrics.py:486] Avg prompt throughput: 16.4 tokens/s, Avg generation throughput: 8.5 tokens/s, Running: 1 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.1%, CPU KV cache usage: 0.0%.
+[TTS] First chunk generated time: 404.41ms
+[TTS] Chunk 1 processed in 2.17ms, total time: 410.32ms
+[TTS] Chunk 1 saved as generated_wavs/chunk_1.wav
+[TTS] Chunk 2 processed in 1.27ms, total time: 626.30ms
+[TTS] Chunk 2 saved as generated_wavs/chunk_2.wav
+[TTS] Chunk 3 processed in 1.28ms, total time: 845.45ms
+[TTS] Chunk 3 saved as generated_wavs/chunk_3.wav
+[TTS] Chunk 4 processed in 1.26ms, total time: 1072.33ms
+[TTS] Chunk 4 saved as generated_wavs/chunk_4.wav
+[TTS] Chunk 5 processed in 1.24ms, total time: 1261.38ms
+[TTS] Chunk 5 saved as generated_wavs/chunk_5.wav
+[TTS] Chunk 6 processed in 1.19ms, total time: 1452.50ms
+[TTS] Chunk 6 saved as generated_wavs/chunk_6.wav
+[TTS] Chunk 7 processed in 1.17ms, total time: 1646.03ms
+[TTS] Chunk 7 saved as generated_wavs/chunk_7.wav
+[TTS] Chunk 8 processed in 1.31ms, total time: 1845.59ms
+[TTS] Chunk 8 saved as generated_wavs/chunk_8.wav
+[TTS] Chunk 9 processed in 1.20ms, total time: 2046.80ms
+[TTS] Chunk 9 saved as generated_wavs/chunk_9.wav
+[TTS] Chunk 10 processed in 1.13ms, total time: 2177.56ms
+[TTS] Chunk 10 saved as generated_wavs/chunk_10.wav
+[TTS] Inference completed in: 2184.74ms
+[TTS] Total chunks generated: 10
+[TTS] Total request time: 2185.52ms
+[TTS] Response completed at: 15:39:16
