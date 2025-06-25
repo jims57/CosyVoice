@@ -210,4 +210,4 @@ async def generate_tts(request: TTSRequest):
         raise HTTPException(status_code=500, detail=f"Error generating audio: {str(e)}")
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=9003)
