@@ -43,7 +43,7 @@ normalized_prompt_text = None
 @app.on_event("startup")
 async def startup_event():
     """Initialize the model and prompt speech once when the app starts"""
-    global cosyvoice, prompt_speech_16k
+    global cosyvoice, prompt_speech_16k, normalized_prompt_text
     
     print("Loading CosyVoice2 model with vllm...")
     # Initialize CosyVoice2 with vllm enabled
@@ -57,8 +57,14 @@ async def startup_event():
     warmup_start = time.time()
     try:
         # Pre-normalize the prompt text to avoid repeated processing
-        global normalized_prompt_text
         normalized_prompt_text = cosyvoice.frontend.text_normalize(prompt_text, split=False, text_frontend=True)
+        
+        # Pre-compute prompt audio processing and cache it as a speaker
+        print("Pre-computing prompt audio processing...")
+        cache_start = time.time()
+        cosyvoice.add_zero_shot_spk(prompt_text, prompt_speech_16k, 'cached_prompt_spk')
+        cache_time = (time.time() - cache_start) * 1000
+        print(f"Prompt audio cached in {cache_time:.2f}ms")
         
         for i, j in enumerate(cosyvoice.inference_zero_shot("Hello world", "Hello", prompt_speech_16k, stream=False)):
             break  # Just run once to warm up
@@ -103,14 +109,14 @@ def generate_audio_chunks(text_content, request_start_time):
         
         # Try to bypass text splitting in inference_zero_shot by using direct model calls
         try:
-            # Direct frontend call to bypass repeated processing
+            # Use pre-cached speaker instead of processing prompt audio every time
             frontend_start = time.time()
             model_input = cosyvoice.frontend.frontend_zero_shot(
                 normalized_text, 
                 normalized_prompt_text, 
                 prompt_speech_16k, 
                 cosyvoice.sample_rate, 
-                ''
+                'cached_prompt_spk'  # Use cached speaker instead of ''
             )
             frontend_time = (time.time() - frontend_start) * 1000
             print(f"[TTS] Frontend processing time: {frontend_time:.2f}ms")
