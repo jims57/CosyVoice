@@ -1,0 +1,4 @@
+root@efd8060a4da3:~/CosyVoice# curl -G --data-urlencode "Mom's cooking is always so delicious, full of warmth and love from home." "http://localhost:8080/tts" --output test.wav
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100    98  100    98    0     0  29080      0 --:--:-- --:--:-- --:--:-- 32666

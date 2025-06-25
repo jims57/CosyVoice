@@ -30,6 +30,7 @@ from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import FileResponse
 import os
 import uuid
+import time
 
 # Global variables for model and prompt (initialized once)
 app = FastAPI()
@@ -49,6 +50,17 @@ async def startup_event():
     # Load prompt speech
     prompt_speech_16k = load_wav('./asset/man-short.wav', 16000)
     
+    # Pre-warm the model with a dummy inference
+    print("Pre-warming model...")
+    warmup_start = time.time()
+    try:
+        for i, j in enumerate(cosyvoice.inference_zero_shot("Hello world", "Hello", prompt_speech_16k, stream=False)):
+            break  # Just run once to warm up
+        warmup_time = (time.time() - warmup_start) * 1000
+        print(f"Model pre-warmed in {warmup_time:.2f}ms")
+    except Exception as e:
+        print(f"Warmup failed: {e}")
+    
     print("Model loaded successfully!")
 
 def cleanup_file(file_path: str):
@@ -63,6 +75,10 @@ async def text_to_speech(text_content: str, background_tasks: BackgroundTasks):
     """
     global cosyvoice, prompt_speech_16k, prompt_text
     
+    # Start timing
+    request_start_time = time.time()
+    print(f"[TTS] Request received at: {time.strftime('%H:%M:%S.%f')[:-3]}")
+    
     if cosyvoice is None or prompt_speech_16k is None:
         return {"error": "Model not initialized"}
     
@@ -70,13 +86,37 @@ async def text_to_speech(text_content: str, background_tasks: BackgroundTasks):
         # Generate a unique filename for this request
         output_filename = f"tts_output_{uuid.uuid4().hex}.wav"
         
-        # Run TTS inference
-        for i, j in enumerate(cosyvoice.inference_zero_shot(text_content, prompt_text, prompt_speech_16k, stream=False)):
-            torchaudio.save(output_filename, j['tts_speech'], cosyvoice.sample_rate)
-            break  # Only take the first result
+        # Time before inference
+        pre_inference_time = time.time()
+        print(f"[TTS] Pre-processing time: {(pre_inference_time - request_start_time)*1000:.2f}ms")
+        
+        # Run TTS inference with streaming - collect all chunks
+        inference_start_time = time.time()
+        print(f"[TTS] Starting inference at: {time.strftime('%H:%M:%S.%f')[:-3]}")
+        
+        audio_chunks = []
+        for i, j in enumerate(cosyvoice.inference_zero_shot(text_content, prompt_text, prompt_speech_16k, stream=True)):
+            audio_chunks.append(j['tts_speech'])
+            print(f"[TTS] Received chunk {i+1}")
+        
+        # Concatenate all chunks
+        if audio_chunks:
+            import torch
+            full_audio = torch.cat(audio_chunks, dim=1)
+            torchaudio.save(output_filename, full_audio, cosyvoice.sample_rate)
+        
+        # Time for file operations
+        file_ops_time = time.time()
+        file_ops_duration = (file_ops_time - inference_start_time) * 1000
+        print(f"[TTS] File operations time: {file_ops_duration:.2f}ms")
         
         # Add cleanup task to background
         background_tasks.add_task(cleanup_file, output_filename)
+        
+        # Total time
+        total_time = (time.time() - request_start_time) * 1000
+        print(f"[TTS] Total request time: {total_time:.2f}ms")
+        print(f"[TTS] Response ready at: {time.strftime('%H:%M:%S.%f')[:-3]}")
         
         # Return the audio file
         return FileResponse(
@@ -86,6 +126,8 @@ async def text_to_speech(text_content: str, background_tasks: BackgroundTasks):
         )
         
     except Exception as e:
+        error_time = (time.time() - request_start_time) * 1000
+        print(f"[TTS] Error after {error_time:.2f}ms: {str(e)}")
         return {"error": f"TTS generation failed: {str(e)}"}
 
 @app.get("/")

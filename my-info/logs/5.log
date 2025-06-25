@@ -1,0 +1,25 @@
+2025-06-25 11:14:56,994 WARNING synthesis text Mom's cooking is always so delicious, full of warmth and love from home. too short than prompt text Did you guys see the video of that dude who was at the gym who took his earbuds and just smacked them against the wall because they would not stay in his ear during his set?, this may lead to bad performance
+2025-06-25 11:14:57,559 INFO synthesis text Mom's cooking is always so delicious, full of warmth and love from home.
+WARNING 06-25 11:14:57 [preprocess.py:63] Using None for EOS token id because tokenizer is not initialized
+INFO 06-25 11:14:57 [metrics.py:486] Avg prompt throughput: 16.5 tokens/s, Avg generation throughput: 9.6 tokens/s, Running: 1 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.1%, CPU KV cache usage: 0.0%.
+2025-06-25 11:14:57,954 INFO yield speech len 1.8, rtf 0.21959582964579263
+  0%|                                                                                              | 0/1 [00:00<?, ?it/s]
+[TTS] Inference completed in: 1018.41ms
+[TTS] File operations time: 0.15ms
+[TTS] Total request time: 1018.69ms
+[TTS] Response ready at: 11:14:57
+INFO:     127.0.0.1:57274 - "GET /tts?text_content=Mom%27s+cooking+is+always+so+delicious%2C+full+of+warmth+and+love+from+home. HTTP/1.1" 200 OK
+[TTS] Request received at: 11:15:08
+[TTS] Pre-processing time: 0.06ms
+[TTS] Starting inference at: 11:15:08
+  0%|                                                                                              | 0/1 [00:00<?, ?it/s]2025-06-25 11:15:08,320 WARNING synthesis text Hello world, this is a test. too short than prompt text Did you guys see the video of that dude who was at the gym who took his earbuds and just smacked them against the wall because they would not stay in his ear during his set?, this may lead to bad performance
+2025-06-25 11:15:08,905 INFO synthesis text Hello world, this is a test.
+WARNING 06-25 11:15:08 [preprocess.py:63] Using None for EOS token id because tokenizer is not initialized
+INFO 06-25 11:15:08 [metrics.py:486] Avg prompt throughput: 22.1 tokens/s, Avg generation throughput: 13.2 tokens/s, Running: 1 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.1%, CPU KV cache usage: 0.0%.
+2025-06-25 11:15:09,303 INFO yield speech len 1.8, rtf 0.22116012043423122
+  0%|                                                                                              | 0/1 [00:00<?, ?it/s]
+[TTS] Inference completed in: 1021.66ms
+[TTS] File operations time: 0.01ms
+[TTS] Total request time: 1021.77ms
+[TTS] Response ready at: 11:15:09
+INFO:     127.0.0.1:44174 - "GET /tts?text_content=Hello+world%2C+this+is+a+test HTTP/1.1" 200 OK

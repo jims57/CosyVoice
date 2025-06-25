@@ -1,0 +1,16 @@
+INFO:     127.0.0.1:35822 - "GET /tts?text_content=The+weather+is+beautiful+today HTTP/1.1" 200 OK
+[TTS] Request received at: 11:07:30
+[TTS] Pre-processing time: 0.06ms
+[TTS] Starting inference at: 11:07:30
+  0%|                                                                                              | 0/1 [00:00<?, ?it/s]
+2025-06-25 11:07:30,091 WARNING synthesis text The weather is beautiful today. too short than prompt text Did you guys see the video of that dude who was at the gym who took his earbuds and just smacked them against the wall because they would not stay in his ear during his set?, this may lead to bad performance
+2025-06-25 11:07:30,653 INFO synthesis text The weather is beautiful today.
+WARNING 06-25 11:07:30 [preprocess.py:63] Using None for EOS token id because tokenizer is not initialized
+INFO 06-25 11:07:30 [metrics.py:486] Avg prompt throughput: 39.1 tokens/s, Avg generation throughput: 12.6 tokens/s, Running: 1 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.1%, CPU KV cache usage: 0.0%.
+2025-06-25 11:07:33,826 INFO yield speech len 4.8, rtf 0.6608748435974121
+  0%|                                                                                              | 0/1 [00:03<?, ?it/s]
+[TTS] Inference completed in: 3782.76ms
+[TTS] File operations time: 0.01ms
+[TTS] Total request time: 3782.88ms
+[TTS] Response ready at: 11:07:33
+INFO:     127.0.0.1:49856 - "GET /tts?text_content=The+weather+is+beautiful+today HTTP/1.1" 200 OK
