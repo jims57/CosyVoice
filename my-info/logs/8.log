@@ -1,0 +1,7 @@
+[TTS] Starting inference at: 14:48:17
+  0%|                                                                                               | 0/1 [00:00<?, ?it/s]
+2025-06-25 14:48:17,237 WARNING synthesis text The weather is beautiful today, with bright sunshine perfect for a walk. too short than prompt text Did you guys see the video of that dude who was at the gym who took his earbuds and just smacked them against the wall because they would not stay in his ear during his set?, this may lead to bad performance
+2025-06-25 14:48:17,811 INFO synthesis text The weather is beautiful today, with bright sunshine perfect for a walk.
+WARNING 06-25 14:48:17 [preprocess.py:63] Using None for EOS token id because tokenizer is not initialized
+INFO 06-25 14:48:17 [metrics.py:486] Avg prompt throughput: 1.0 tokens/s, Avg generation throughput: 0.6 tokens/s, Running: 1 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.1%, CPU KV cache usage: 0.0%.
+2025-06-25 14:48:18,217 INFO yield speech len 1.8, rtf 0.22586663564046222

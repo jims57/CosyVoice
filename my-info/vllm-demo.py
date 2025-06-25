@@ -38,6 +38,7 @@ app = FastAPI()
 cosyvoice = None
 prompt_speech_16k = None
 prompt_text = "Did you guys see the video of that dude who was at the gym who took his earbuds and just smacked them against the wall because they would not stay in his ear during his set? "
+normalized_prompt_text = None
 
 @app.on_event("startup")
 async def startup_event():
@@ -51,10 +52,14 @@ async def startup_event():
     # Load prompt speech
     prompt_speech_16k = load_wav('./asset/man-short.wav', 16000)
     
-    # Pre-warm the model with a dummy inference
+    # Pre-warm the model with a dummy inference AND pre-normalize prompt text
     print("Pre-warming model...")
     warmup_start = time.time()
     try:
+        # Pre-normalize the prompt text to avoid repeated processing
+        global normalized_prompt_text
+        normalized_prompt_text = cosyvoice.frontend.text_normalize(prompt_text, split=False, text_frontend=True)
+        
         for i, j in enumerate(cosyvoice.inference_zero_shot("Hello world", "Hello", prompt_speech_16k, stream=False)):
             break  # Just run once to warm up
         warmup_time = (time.time() - warmup_start) * 1000
@@ -101,7 +106,7 @@ async def text_to_speech(text_content: str):
             # Create generated_wavs folder if it doesn't exist
             os.makedirs("generated_wavs", exist_ok=True)
             
-            for i, j in enumerate(cosyvoice.inference_zero_shot(text_content, prompt_text, prompt_speech_16k, stream=True)):
+            for i, j in enumerate(cosyvoice.inference_zero_shot(text_content, normalized_prompt_text, prompt_speech_16k, stream=True)):
                 chunk_start_time = time.time()
                 chunk_count += 1
                 

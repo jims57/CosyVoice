@@ -1,0 +1,26 @@
+INFO:     127.0.0.1:47226 - "GET /tts?text_content=The+weather+is+beautiful+today%2C+with+bright+sunshine+perfect+for+a+walk. HTTP/1.1" 200 OK
+[TTS] Pre-processing time: 1.12ms
+[TTS] Starting inference at: 14:48:17
+  0%|                                                                                               | 0/1 [00:00<?, ?it/s]
+2025-06-25 14:48:17,237 WARNING synthesis text The weather is beautiful today, with bright sunshine perfect for a walk. too short than prompt text Did you guys see the video of that dude who was at the gym who took his earbuds and just smacked them against the wall because they would not stay in his ear during his set?, this may lead to bad performance
+2025-06-25 14:48:17,811 INFO synthesis text The weather is beautiful today, with bright sunshine perfect for a walk.
+WARNING 06-25 14:48:17 [preprocess.py:63] Using None for EOS token id because tokenizer is not initialized
+INFO 06-25 14:48:17 [metrics.py:486] Avg prompt throughput: 1.0 tokens/s, Avg generation throughput: 0.6 tokens/s, Running: 1 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.1%, CPU KV cache usage: 0.0%.
+2025-06-25 14:48:18,217 INFO yield speech len 1.8, rtf 0.22586663564046222
+[TTS] First chunk generated time: 1036.47ms
+[TTS] Chunk 1 processed in 2.19ms, total time: 1039.81ms
+[TTS] Chunk 1 saved as generated_wavs/chunk_1.wav
+2025-06-25 14:48:18,406 INFO yield speech len 1.0, rtf 0.18631672859191895
+[TTS] Chunk 2 processed in 1.43ms, total time: 1228.08ms
+[TTS] Chunk 2 saved as generated_wavs/chunk_2.wav
+2025-06-25 14:48:18,587 INFO yield speech len 1.0, rtf 0.17913031578063965
+[TTS] Chunk 3 processed in 1.38ms, total time: 1409.07ms
+[TTS] Chunk 3 saved as generated_wavs/chunk_3.wav
+2025-06-25 14:48:18,673 INFO yield speech len 1.16, rtf 0.07239148534577469
+[TTS] Chunk 4 processed in 1.49ms, total time: 1495.01ms
+[TTS] Chunk 4 saved as generated_wavs/chunk_4.wav
+100%|███████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:01<00:00,  1.44s/it]
+[TTS] Inference completed in: 1495.63ms
+[TTS] Total chunks generated: 4
+[TTS] Total request time: 1496.78ms
+[TTS] Response completed at: 14:48:18
