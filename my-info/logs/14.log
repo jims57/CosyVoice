@@ -1,0 +1,10 @@
+[06/25/2025-15:56:32] [TRT] [E] 3: [executionContext.cpp::setInputShape::2068] Error Code 3: API Usage Error (Parameter check failed at: runtime/api/executionContext.cpp::setInputShape::2068, condition: satisfyProfile Runtime dimension does not satisfy any optimization profile.)
+[06/25/2025-15:56:32] [TRT] [E] 3: [executionContext.cpp::setInputShape::2068] Error Code 3: API Usage Error (Parameter check failed at: runtime/api/executionContext.cpp::setInputShape::2068, condition: satisfyProfile Runtime dimension does not satisfy any optimization profile.)
+[06/25/2025-15:56:32] [TRT] [E] 3: [executionContext.cpp::setInputShape::2068] Error Code 3: API Usage Error (Parameter check failed at: runtime/api/executionContext.cpp::setInputShape::2068, condition: satisfyProfile Runtime dimension does not satisfy any optimization profile.)
+[06/25/2025-15:56:32] [TRT] [E] 3: [executionContext.cpp::setInputShape::2068] Error Code 3: API Usage Error (Parameter check failed at: runtime/api/executionContext.cpp::setInputShape::2068, condition: satisfyProfile Runtime dimension does not satisfy any optimization profile.)
+[TTS] Chunk 75 processed in 1.50ms, total time: 53809.81ms
+[TTS] Chunk 75 saved as generated_wavs/chunk_75.wav
+[TTS] Inference completed in: 53839.48ms
+[TTS] Total chunks generated: 75
+[TTS] Total request time: 53840.42ms
+[TTS] Response completed at: 15:56:32

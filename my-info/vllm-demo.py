@@ -108,66 +108,16 @@ def generate_audio_chunks(text_content, request_start_time):
         text_norm_time = (time.time() - text_norm_start) * 1000
         print(f"[TTS] Text normalization time: {text_norm_time:.2f}ms, got {len(normalized_text_chunks)} chunks")
         
-        # Process first chunk immediately for fastest response
-        try:
-            # Use first chunk only for immediate response
-            first_text_chunk = normalized_text_chunks[0] if normalized_text_chunks else text_content
+        # Process all text chunks to stay within TRT limits
+        for chunk_idx, text_chunk in enumerate(normalized_text_chunks):
+            print(f"[TTS] Processing text chunk {chunk_idx + 1}/{len(normalized_text_chunks)}: {text_chunk[:50]}...")
             
-            # Use pre-cached speaker instead of processing prompt audio every time
-            frontend_start = time.time()
-            model_input = cosyvoice.frontend.frontend_zero_shot(
-                first_text_chunk,  # Use first chunk only
-                normalized_prompt_text, 
-                prompt_speech_16k, 
-                cosyvoice.sample_rate, 
-                'cached_prompt_spk'  # Use cached speaker instead of ''
-            )
-            frontend_time = (time.time() - frontend_start) * 1000
-            print(f"[TTS] Frontend processing time: {frontend_time:.2f}ms")
-            
-            # Direct model inference with optimized streaming parameters
-            model_start_time = time.time()
-            for model_output in cosyvoice.model.tts(**model_input, stream=True, speed=1.0):
+            # Use inference_zero_shot for each text chunk to maintain proper ordering
+            for i, j in enumerate(cosyvoice.inference_zero_shot(text_chunk, normalized_prompt_text, prompt_speech_16k, zero_shot_spk_id='cached_prompt_spk', stream=True)):
                 chunk_start_time = time.time()
-                chunk_count += 1
+                chunk_count += 1  # Keep incrementing chunk_count across all text chunks
                 
-                # Record first chunk timing
-                if not first_chunk_generated:
-                    first_chunk_time = (chunk_start_time - model_start_time) * 1000
-                    print(f"[TTS] First chunk generated time: {first_chunk_time:.2f}ms")
-                    first_chunk_generated = True
-                
-                # Convert audio tensor to wav bytes for streaming
-                buffer = io.BytesIO()
-                torchaudio.save(buffer, model_output['tts_speech'], cosyvoice.sample_rate, format="wav")
-                wav_bytes = buffer.getvalue()
-                buffer.close()
-                
-                # Save each chunk as separate file in generated_wavs folder
-                chunk_filename = f"generated_wavs/chunk_{chunk_count}.wav"
-                torchaudio.save(chunk_filename, model_output['tts_speech'], cosyvoice.sample_rate)
-                
-                chunk_processing_time = (time.time() - chunk_start_time) * 1000
-                total_time_so_far = (time.time() - request_start_time) * 1000
-                
-                print(f"[TTS] Chunk {chunk_count} processed in {chunk_processing_time:.2f}ms, total time: {total_time_so_far:.2f}ms")
-                print(f"[TTS] Chunk {chunk_count} saved as {chunk_filename}")
-                
-                # Yield each chunk to client
-                yield wav_bytes
-        
-        except Exception as direct_error:
-            print(f"[TTS] Direct call failed: {direct_error}, falling back to inference_zero_shot")
-            # Fallback to original method
-            for i, j in enumerate(cosyvoice.inference_zero_shot(normalized_text, normalized_prompt_text, prompt_speech_16k, stream=True)):
-                chunk_start_time = time.time()
-                chunk_count += 1
-                
-                # Save each chunk as separate file in generated_wavs folder
-                chunk_filename = f"generated_wavs/chunk_{i+1}.wav"
-                torchaudio.save(chunk_filename, j['tts_speech'], cosyvoice.sample_rate)
-                
-                # Record first chunk timing
+                # Record first chunk timing (only for the very first chunk)
                 if not first_chunk_generated:
                     first_chunk_time = (chunk_start_time - inference_start_time) * 1000
                     print(f"[TTS] First chunk generated time: {first_chunk_time:.2f}ms")
@@ -179,24 +129,18 @@ def generate_audio_chunks(text_content, request_start_time):
                 wav_bytes = buffer.getvalue()
                 buffer.close()
                 
+                # Save each chunk as separate file in generated_wavs folder with sequential numbering
+                chunk_filename = f"generated_wavs/chunk_{chunk_count}.wav"
+                torchaudio.save(chunk_filename, j['tts_speech'], cosyvoice.sample_rate)
+                
                 chunk_processing_time = (time.time() - chunk_start_time) * 1000
                 total_time_so_far = (time.time() - request_start_time) * 1000
                 
-                print(f"[TTS] Chunk {i+1} processed in {chunk_processing_time:.2f}ms, total time: {total_time_so_far:.2f}ms")
-                print(f"[TTS] Chunk {i+1} saved as {chunk_filename}")
+                print(f"[TTS] Chunk {chunk_count} (text chunk {chunk_idx + 1}) processed in {chunk_processing_time:.2f}ms, total time: {total_time_so_far:.2f}ms")
+                print(f"[TTS] Chunk {chunk_count} saved as {chunk_filename}")
                 
-                # Yield the chunk immediately to client
+                # Yield each chunk to client
                 yield wav_bytes
-        
-        # End of inference timing
-        inference_end_time = time.time()
-        total_inference_time = (inference_end_time - inference_start_time) * 1000
-        total_request_time = (inference_end_time - request_start_time) * 1000
-        
-        print(f"[TTS] Inference completed in: {total_inference_time:.2f}ms")
-        print(f"[TTS] Total chunks generated: {chunk_count}")
-        print(f"[TTS] Total request time: {total_request_time:.2f}ms")
-        print(f"[TTS] Response completed at: {time.strftime('%H:%M:%S.%f')[:-3]}")
         
     except Exception as e:
         error_time = (time.time() - request_start_time) * 1000
