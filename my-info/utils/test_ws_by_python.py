@@ -25,14 +25,13 @@ async def test_websocket():
         
         while True:
             try:
-                chunk_receive_start = time.time()
-                audio_data = await websocket.recv()
+                # Add timeout to detect when no more chunks are coming
+                audio_data = await asyncio.wait_for(websocket.recv(), timeout=1.0)
                 chunk_receive_end = time.time()
                 
                 chunk_count += 1
                 
                 # Calculate timing
-                chunk_processing_time = (chunk_receive_end - chunk_receive_start) * 1000
                 time_since_request = (chunk_receive_end - start_time) * 1000
                 
                 # Record first chunk timing
@@ -42,9 +41,10 @@ async def test_websocket():
                 
                 last_chunk_time = time_since_request
                 
-                print(f"Received chunk {chunk_count}, size: {len(audio_data)} bytes, processing time: {chunk_processing_time:.2f}ms, total time: {time_since_request:.2f}ms")
+                print(f"Received chunk {chunk_count}, size: {len(audio_data)} bytes, total time: {time_since_request:.2f}ms")
                 
-            except websockets.exceptions.ConnectionClosed:
+            except (websockets.exceptions.ConnectionClosed, asyncio.TimeoutError):
+                # Exit when connection closes or no chunks for 3 seconds
                 break
         
         # Final summary
