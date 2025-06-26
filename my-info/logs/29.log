@@ -1,0 +1,56 @@
+=== Request 6 Summary ===
+First chunk arrival time: 454.67ms
+Total chunks received: 9
+Total time for all chunks: 2038.48ms
+
+=== Request 7/8 ===
+Request 7 start time: 17:47:51
+Request 7 sent: {'text': '雪花纷飞覆盖大地，梅花独自傲雪开放。我踏雪寻梅来到园中，被这坚韧不拔的精神深深感动。'}
+Request 7 - First chunk arrived in: 476.54ms since request
+Request 7 - Received chunk 1, size: 86478 bytes, total time: 476.54ms
+Request 7 - Received chunk 2, size: 48078 bytes, total time: 721.08ms
+Request 7 - Received chunk 3, size: 48078 bytes, total time: 957.76ms
+Request 7 - Received chunk 4, size: 48078 bytes, total time: 1204.50ms
+Request 7 - Received chunk 5, size: 48078 bytes, total time: 1451.81ms
+Request 7 - Received chunk 6, size: 48078 bytes, total time: 1704.86ms
+Request 7 - Received chunk 7, size: 48078 bytes, total time: 1963.16ms
+Request 7 - Received chunk 8, size: 48078 bytes, total time: 2222.12ms
+Request 7 - Received chunk 9, size: 48078 bytes, total time: 2451.34ms
+Request 7 - Received chunk 10, size: 48078 bytes, total time: 2662.69ms
+Request 7 - Received chunk 11, size: 48078 bytes, total time: 2876.92ms
+Request 7 - Received chunk 12, size: 48078 bytes, total time: 3102.50ms
+Request 7 - Received chunk 13, size: 48078 bytes, total time: 3332.91ms
+Request 7 - Received chunk 14, size: 48078 bytes, total time: 3568.02ms
+Request 7 - Received chunk 15, size: 48078 bytes, total time: 3810.80ms
+Request 7 - Received chunk 16, size: 48078 bytes, total time: 4061.38ms
+Request 7 - Received chunk 17, size: 48078 bytes, total time: 4319.69ms
+Request 7 - Received chunk 18, size: 48078 bytes, total time: 4591.66ms
+Request 7 - Received chunk 19, size: 48078 bytes, total time: 4880.63ms
+Request 7 - Received chunk 20, size: 48078 bytes, total time: 5199.94ms
+Request 7 - Received chunk 21, size: 55758 bytes, total time: 5439.76ms
+
+=== Request 7 Summary ===
+First chunk arrival time: 476.54ms
+Total chunks received: 21
+Total time for all chunks: 5439.76ms
+
+=== Request 8/8 ===
+Request 8 start time: 17:47:57
+Request 8 sent: {'text': '古刹钟声悠远绵长，香烟袅袅升向天空。我在殿堂里静静祈祷，心灵在这庄严的氛围中得到净化。'}
+Request 8 - First chunk arrived in: 475.28ms since request
+Request 8 - Received chunk 1, size: 86478 bytes, total time: 475.28ms
+Request 8 - Received chunk 2, size: 48078 bytes, total time: 697.38ms
+Request 8 - Received chunk 3, size: 48078 bytes, total time: 922.43ms
+Request 8 - Received chunk 4, size: 48078 bytes, total time: 1153.57ms
+Request 8 - Received chunk 5, size: 48078 bytes, total time: 1356.39ms
+Request 8 - Received chunk 6, size: 48078 bytes, total time: 1553.82ms
+Request 8 - Received chunk 7, size: 48078 bytes, total time: 1752.41ms
+Request 8 - Received chunk 8, size: 48078 bytes, total time: 1955.96ms
+Request 8 - Received chunk 9, size: 48078 bytes, total time: 2163.36ms
+Request 8 - Received chunk 10, size: 48078 bytes, total time: 2373.83ms
+Request 8 - Received chunk 11, size: 34638 bytes, total time: 2513.74ms
+
+=== Request 8 Summary ===
+First chunk arrival time: 475.28ms
+Total chunks received: 11
+Total time for all chunks: 2513.74ms

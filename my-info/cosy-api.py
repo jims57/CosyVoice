@@ -174,29 +174,32 @@ async def websocket_tts(websocket: WebSocket):
             print(f"Time before inference: {elapsed_since_start:.2f} ms since start")
             
             try:
-                # Inline audio generation and direct sending (no function calls)
+                # === DETAILED PERFORMANCE LOGGING ===
                 # Time before inference
                 pre_inference_time = time.time()
                 pre_processing_duration = (pre_inference_time - start_time) * 1000
-                print(f"[WS-TTS] Pre-processing time: {pre_processing_duration:.2f}ms")
+                print(f"[WS-TTS] 📊 Pre-processing time: {pre_processing_duration:.2f}ms")
                 
                 # Run TTS inference with streaming
                 inference_start_time = time.time()
-                print(f"[WS-TTS] Starting inference at: {time.strftime('%H:%M:%S.%f')[:-3]}")
+                print(f"[WS-TTS] 🚀 Starting inference at: {time.strftime('%H:%M:%S.%f')[:-3]}")
                 
                 first_chunk_generated = False
                 first_chunk_sent = False
                 chunk_count = 0
                 
-                # Pre-normalize input text with splitting enabled for faster first chunk
+                # === TEXT NORMALIZATION TIMING ===
                 text_norm_start = time.time()
                 normalized_text_chunks = global_cosyvoice.frontend.text_normalize(text, split=True, text_frontend=False)
                 text_norm_time = (time.time() - text_norm_start) * 1000
-                print(f"[WS-TTS] Text normalization time: {text_norm_time:.2f}ms, got {len(normalized_text_chunks)} chunks")
+                print(f"[WS-TTS] 📝 Text normalization time: {text_norm_time:.2f}ms, got {len(normalized_text_chunks)} chunks")
                 
                 # Process all text chunks to stay within TRT limits
                 for chunk_idx, text_chunk in enumerate(normalized_text_chunks):
-                    print(f"[WS-TTS] Processing text chunk {chunk_idx + 1}/{len(normalized_text_chunks)}: {text_chunk[:50]}...")
+                    print(f"[WS-TTS] 🔄 Processing text chunk {chunk_idx + 1}/{len(normalized_text_chunks)}: {text_chunk[:50]}...")
+                    
+                    # === ZERO-SHOT INFERENCE TIMING ===
+                    zeroshot_start = time.time()
                     
                     # Use inference_zero_shot for each text chunk to maintain proper ordering
                     for i, j in enumerate(global_cosyvoice.inference_zero_shot(
@@ -213,9 +216,14 @@ async def websocket_tts(websocket: WebSocket):
                         if not first_chunk_generated:
                             first_chunk_time = (chunk_start_time - inference_start_time) * 1000
                             first_chunk_since_request = (chunk_start_time - start_time) * 1000
-                            print(f"[WS-TTS] First chunk generated time: {first_chunk_time:.2f}ms")
-                            print(f"[WS-TTS] First chunk generated since request arrival: {first_chunk_since_request:.2f}ms")
+                            zeroshot_time = (chunk_start_time - zeroshot_start) * 1000
+                            print(f"[WS-TTS] ⚡ First chunk generated time: {first_chunk_time:.2f}ms")
+                            print(f"[WS-TTS] ⚡ First chunk since request arrival: {first_chunk_since_request:.2f}ms")
+                            print(f"[WS-TTS] ⚡ Zero-shot inference time: {zeroshot_time:.2f}ms")
                             first_chunk_generated = True
+                        
+                        # === AUDIO CONVERSION TIMING ===
+                        audio_convert_start = time.time()
                         
                         # Convert audio tensor to WAV format for WebSocket streaming
                         buffer = io.BytesIO()
@@ -223,34 +231,37 @@ async def websocket_tts(websocket: WebSocket):
                         wav_bytes = buffer.getvalue()
                         buffer.close()
                         
+                        audio_convert_time = (time.time() - audio_convert_start) * 1000
                         chunk_processing_time = (time.time() - chunk_start_time) * 1000
                         total_time_so_far = (time.time() - start_time) * 1000
                         
-                        print(f"[WS-TTS] Chunk {chunk_count} (text chunk {chunk_idx + 1}) processed in {chunk_processing_time:.2f}ms, total time: {total_time_so_far:.2f}ms")
+                        print(f"[WS-TTS] 🎵 Audio conversion time: {audio_convert_time:.2f}ms")
+                        print(f"[WS-TTS] 📦 Chunk {chunk_count} (text chunk {chunk_idx + 1}) processed in {chunk_processing_time:.2f}ms, total time: {total_time_so_far:.2f}ms")
                         
-                        # Send WAV chunk directly to WebSocket client immediately with forced flush
+                        # === WEBSOCKET SEND TIMING ===
+                        send_start = time.time()
                         await websocket.send_bytes(wav_bytes)
-                        # Force immediate transmission by yielding control briefly
                         await asyncio.sleep(0)
+                        send_time = (time.time() - send_start) * 1000
                         
-                        print(f"[WS-TTS] Chunk {chunk_count} (text chunk {chunk_idx + 1}) processed in {chunk_processing_time:.2f}ms, total time: {total_time_so_far:.2f}ms")
+                        print(f"[WS-TTS] 📡 WebSocket send time: {send_time:.2f}ms")
                         
                         # Track first chunk sent timing
                         if not first_chunk_sent:
                             first_chunk_sent_time = time.time()
                             elapsed_since_start = (first_chunk_sent_time - start_time) * 1000
                             elapsed_since_before = (first_chunk_sent_time - before_inference_time) * 1000
-                            print(f"Time to send first chunk: {elapsed_since_start:.2f} ms since start, {elapsed_since_before:.2f} ms since before inference")
+                            print(f"[WS-TTS] 🎯 Time to send first chunk: {elapsed_since_start:.2f} ms since start, {elapsed_since_before:.2f} ms since before inference")
                             first_chunk_sent = True
                 
                 # Log completion timing
                 after_inference_time = time.time()
                 elapsed_since_start = (after_inference_time - start_time) * 1000
                 elapsed_since_before = (after_inference_time - before_inference_time) * 1000
-                print(f"Time after inference: {elapsed_since_start:.2f} ms since start, {elapsed_since_before:.2f} ms since before inference")
+                print(f"[WS-TTS] ✅ Time after inference: {elapsed_since_start:.2f} ms since start, {elapsed_since_before:.2f} ms since before inference")
                 
                 generation_time = time.time() - start_time
-                print(f"Audio generated in {generation_time:.2f} seconds")
+                print(f"[WS-TTS] 🏁 Audio generated in {generation_time:.2f} seconds")
                 
             except Exception as inference_error:
                 print(f"Inference error: {str(inference_error)}")
@@ -365,6 +376,40 @@ async def startup_event():
         print(f"Warmup failed: {e}")
     
     print("CosyVoice model loaded successfully!")
+
+    # === GPU/CUDA/CUDNN Acceleration Diagnostics ===
+    print("\n" + "="*50)
+    print("🚀 GPU ACCELERATION STATUS")
+    print("="*50)
+    
+    # CUDA/CUDNN Info
+    print(f"✅ CUDA Available: {torch.cuda.is_available()}")
+    print(f"✅ CUDA Version: {torch.version.cuda}")
+    print(f"✅ CUDNN Version: {torch.backends.cudnn.version()}")
+    print(f"✅ CUDNN Enabled: {torch.backends.cudnn.enabled}")
+    if torch.cuda.is_available():
+        print(f"✅ GPU Device: {torch.cuda.get_device_name(0)}")
+        print(f"✅ GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+    
+    # ONNX Runtime Providers
+    import onnxruntime as ort
+    providers = ort.get_available_providers()
+    print(f"✅ ONNX Providers: {providers}")
+    if 'CUDAExecutionProvider' in providers:
+        print("✅ ONNX CUDA Acceleration: ENABLED")
+    else:
+        print("❌ ONNX CUDA Acceleration: DISABLED")
+    
+    # VLLM Status
+    if hasattr(global_cosyvoice.model.llm, 'vllm'):
+        print("✅ VLLM Acceleration: ENABLED")
+        print("✅ VLLM GPU Memory Utilization: Configured")
+    else:
+        print("❌ VLLM Acceleration: DISABLED")
+    
+    print("="*50)
+    print("🎯 Ready for high-performance TTS inference!")
+    print("="*50 + "\n")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=9003)
