@@ -1,0 +1,47 @@
+Audio generated in 2.58 seconds
+[WS-TTS] WebSocket connection disconnected
+INFO:     connection closed
+INFO:     ('127.0.0.1', 56354) - "WebSocket /ws-tts" [accepted]
+[WS-TTS] WebSocket connection established
+INFO:     connection open
+WS-TTS start time: 11:25:03
+Generating audio for text: 青石板上泛着水光，雨丝斜斜地织着帘子。我撑一把油纸伞，踩着湿润的石板路，听脚步声在巷子里轻轻回响。
+Time before inference: 0.04 ms since start
+[WS-TTS] Pre-processing time: 0.06ms
+[WS-TTS] Starting inference at: 11:25:03
+[WS-TTS] Text normalization time: 0.02ms, got 1 chunks
+[WS-TTS] Processing text chunk 1/1: 青石板上泛着水光，雨丝斜斜地织着帘子。我撑一把油纸伞，踩着湿润的石板路，听脚步声在巷子里轻轻回响。...
+  0%|                                                                                                             | 0/1 [00:00<?, ?it/s]2025-06-26 11:25:03,719 WARNING synthesis text 青石板上泛着水光，雨丝斜斜地织着帘子。我撑一把油纸伞，踩着湿润的石板路，听脚步声在巷子里
+  轻回响。 too short than prompt text Did you guys see the video of that dude who was at the gym who took his earbuds and just smacked them against the wall because they would not stay in his ear during his set?, this may lead to bad performance
+2025-06-26 11:25:03,728 INFO synthesis text 青石板上泛着水光，雨丝斜斜地织着帘子。我撑一把油纸伞，踩着湿润的石板路，听脚步声在巷子里轻轻
+  响。
+WARNING 06-26 11:25:03 [preprocess.py:63] Using None for EOS token id because tokenizer is not initialized
+INFO 06-26 11:25:03 [metrics.py:486] Avg prompt throughput: 10.4 tokens/s, Avg generation throughput: 10.0 tokens/s, Running: 1 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.1%, CPU KV cache usage: 0.0%.
+2025-06-26 11:25:04,138 INFO yield speech len 1.8, rtf 0.22757609685262042
+[WS-TTS] First chunk generated time: 480.11ms
+[WS-TTS] First chunk generated since request arrival: 480.18ms
+[WS-TTS] Chunk 1 (text chunk 1) processed in 1.14ms, total time: 481.32ms
+Time to send first chunk: 483.49 ms since start, 483.45 ms since before inference
+2025-06-26 11:25:04,378 INFO yield speech len 1.0, rtf 0.2367393970489502
+[WS-TTS] Chunk 2 (text chunk 1) processed in 0.72ms, total time: 721.07ms
+2025-06-26 11:25:04,617 INFO yield speech len 1.0, rtf 0.23659634590148926
+[WS-TTS] Chunk 3 (text chunk 1) processed in 0.71ms, total time: 960.54ms
+2025-06-26 11:25:04,834 INFO yield speech len 1.0, rtf 0.21445417404174805
+[WS-TTS] Chunk 4 (text chunk 1) processed in 0.70ms, total time: 1177.67ms
+2025-06-26 11:25:05,027 INFO yield speech len 1.0, rtf 0.19066715240478516
+[WS-TTS] Chunk 5 (text chunk 1) processed in 0.75ms, total time: 1370.90ms
+2025-06-26 11:25:05,222 INFO yield speech len 1.0, rtf 0.19201970100402832
+[WS-TTS] Chunk 6 (text chunk 1) processed in 0.71ms, total time: 1565.59ms
+2025-06-26 11:25:05,419 INFO yield speech len 1.0, rtf 0.1942605972290039
+[WS-TTS] Chunk 7 (text chunk 1) processed in 0.69ms, total time: 1762.27ms
+2025-06-26 11:25:05,620 INFO yield speech len 1.0, rtf 0.19834184646606445
+[WS-TTS] Chunk 8 (text chunk 1) processed in 0.68ms, total time: 1963.51ms
+2025-06-26 11:25:05,825 INFO yield speech len 1.0, rtf 0.20154261589050293
+[WS-TTS] Chunk 9 (text chunk 1) processed in 0.67ms, total time: 2167.94ms
+2025-06-26 11:25:05,958 INFO yield speech len 0.44, rtf 0.2952207218516957
+[WS-TTS] Chunk 10 (text chunk 1) processed in 0.44ms, total time: 2300.65ms
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:02<00:00,  2.25s/it]
+Time after inference: 2307.85 ms since start, 2307.80 ms since before inference
+Audio generated in 2.31 seconds
+[WS-TTS] WebSocket connection disconnected
+INFO:     connection closed
