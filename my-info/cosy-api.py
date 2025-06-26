@@ -228,8 +228,12 @@ async def websocket_tts(websocket: WebSocket):
                         
                         print(f"[WS-TTS] Chunk {chunk_count} (text chunk {chunk_idx + 1}) processed in {chunk_processing_time:.2f}ms, total time: {total_time_so_far:.2f}ms")
                         
-                        # Send WAV chunk directly to WebSocket client immediately
+                        # Send WAV chunk directly to WebSocket client immediately with forced flush
                         await websocket.send_bytes(wav_bytes)
+                        # Force immediate transmission by yielding control briefly
+                        await asyncio.sleep(0)
+                        
+                        print(f"[WS-TTS] Chunk {chunk_count} (text chunk {chunk_idx + 1}) processed in {chunk_processing_time:.2f}ms, total time: {total_time_so_far:.2f}ms")
                         
                         # Track first chunk sent timing
                         if not first_chunk_sent:

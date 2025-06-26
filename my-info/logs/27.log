@@ -1,0 +1,20 @@
+=== Request 7 Summary ===
+First chunk arrival time: 494.50ms
+Total chunks received: 10
+Total time for all chunks: 2377.33ms
+
+=== Request 8/8 ===
+Request 8 start time: 13:51:20
+Request 8 sent: {'text': '青石板上泛着水光，雨丝斜斜地织着帘子。我撑一把油纸伞，踩着湿润的石板路，听脚步声在巷子里轻轻回响。'}
+Request 8 - First chunk arrived in: 490.33ms since request
+Request 8 - Received chunk 1, size: 86478 bytes, total time: 490.33ms
+Request 8 - Received chunk 2, size: 48078 bytes, total time: 732.32ms
+Request 8 - Received chunk 3, size: 48078 bytes, total time: 976.00ms
+Request 8 - Received chunk 4, size: 48078 bytes, total time: 1228.78ms
+Request 8 - Received chunk 5, size: 48078 bytes, total time: 1423.97ms
+Request 8 - Received chunk 6, size: 48078 bytes, total time: 1634.08ms
+Request 8 - Received chunk 7, size: 48078 bytes, total time: 1842.26ms
+Request 8 - Received chunk 8, size: 48078 bytes, total time: 2057.45ms
+Request 8 - Received chunk 9, size: 48078 bytes, total time: 2279.72ms
+Request 8 - Received chunk 10, size: 48078 bytes, total time: 2506.09ms
+Request 8 - Received chunk 11, size: 53838 bytes, total time: 2649.03ms
