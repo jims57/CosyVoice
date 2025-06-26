@@ -130,7 +130,7 @@ def generate_audio_chunks(text, request_start_time, audio_format):
         print(f"[TTS] Error after {error_time:.2f}ms: {str(e)}")
         yield b"Error: TTS generation failed"
 
-async def generate_audio_chunks_ws(text, request_start_time, audio_format, websocket):
+async def generate_audio_chunks_ws(text, request_start_time, audio_format, websocket, before_inference_time):
     """Generate audio chunks for WebSocket streaming"""
     global global_cosyvoice, global_prompt_speech_16k, global_normalized_prompt_text
     
@@ -145,6 +145,7 @@ async def generate_audio_chunks_ws(text, request_start_time, audio_format, webso
         print(f"[WS-TTS] Starting inference at: {time.strftime('%H:%M:%S.%f')[:-3]}")
         
         first_chunk_generated = False
+        first_chunk_sent = False
         first_chunk_time = None
         chunk_count = 0
         
@@ -186,8 +187,25 @@ async def generate_audio_chunks_ws(text, request_start_time, audio_format, webso
                 
                 print(f"[WS-TTS] Chunk {chunk_count} (text chunk {chunk_idx + 1}) processed in {chunk_processing_time:.2f}ms, total time: {total_time_so_far:.2f}ms")
                 
-                # Send WAV chunk directly to WebSocket client
+                # Send WAV chunk directly to WebSocket client immediately
                 await websocket.send_bytes(wav_bytes)
+                
+                # Track first chunk sent timing
+                if not first_chunk_sent:
+                    first_chunk_sent_time = time.time()
+                    elapsed_since_start = (first_chunk_sent_time - request_start_time) * 1000
+                    elapsed_since_before = (first_chunk_sent_time - before_inference_time) * 1000
+                    print(f"Time to send first chunk: {elapsed_since_start:.2f} ms since start, {elapsed_since_before:.2f} ms since before inference")
+                    first_chunk_sent = True
+        
+        # Log completion timing
+        after_inference_time = time.time()
+        elapsed_since_start = (after_inference_time - request_start_time) * 1000
+        elapsed_since_before = (after_inference_time - before_inference_time) * 1000
+        print(f"Time after inference: {elapsed_since_start:.2f} ms since start, {elapsed_since_before:.2f} ms since before inference")
+        
+        generation_time = time.time() - request_start_time
+        print(f"Audio generated in {generation_time:.2f} seconds")
         
     except Exception as e:
         error_time = (time.time() - request_start_time) * 1000
@@ -284,31 +302,9 @@ async def websocket_tts(websocket: WebSocket):
             elapsed_since_start = (before_inference_time - start_time) * 1000
             print(f"Time before inference: {elapsed_since_start:.2f} ms since start")
             
-            # Track first chunk timing
-            first_chunk_sent = False
-            first_chunk_time = None
-            
             try:
-                # Generate and stream audio chunks as WAV binary data
-                chunk_count = 0
-                async for wav_chunk in generate_audio_chunks_ws_with_timing(text, start_time, audio_format, websocket):
-                    chunk_count += 1
-                    if not first_chunk_sent:
-                        first_chunk_time = time.time()
-                        elapsed_since_start = (first_chunk_time - start_time) * 1000
-                        elapsed_since_before = (first_chunk_time - before_inference_time) * 1000
-                        print(f"Time to send first chunk: {elapsed_since_start:.2f} ms since start, {elapsed_since_before:.2f} ms since before inference")
-                        first_chunk_sent = True
-                    
-                    await websocket.send_bytes(wav_chunk)
-                
-                after_inference_time = time.time()
-                elapsed_since_start = (after_inference_time - start_time) * 1000
-                elapsed_since_before = (after_inference_time - before_inference_time) * 1000
-                print(f"Time after inference: {elapsed_since_start:.2f} ms since start, {elapsed_since_before:.2f} ms since before inference")
-                
-                generation_time = time.time() - start_time
-                print(f"Audio generated in {generation_time:.2f} seconds")
+                # Generate and stream audio chunks directly
+                await generate_audio_chunks_ws(text, start_time, audio_format, websocket, before_inference_time)
                 
             except Exception as inference_error:
                 print(f"Inference error: {str(inference_error)}")
@@ -325,70 +321,6 @@ async def websocket_tts(websocket: WebSocket):
             await websocket.send_text(json.dumps({"error": f"WebSocket error: {str(e)}"}))
         except:
             pass
-
-async def generate_audio_chunks_ws_with_timing(text, request_start_time, audio_format, websocket):
-    """Generate audio chunks for WebSocket streaming with timing"""
-    global global_cosyvoice, global_prompt_speech_16k, global_normalized_prompt_text
-    
-    try:
-        # Time before inference
-        pre_inference_time = time.time()
-        pre_processing_duration = (pre_inference_time - request_start_time) * 1000
-        print(f"[WS-TTS] Pre-processing time: {pre_processing_duration:.2f}ms")
-        
-        # Run TTS inference with streaming
-        inference_start_time = time.time()
-        print(f"[WS-TTS] Starting inference at: {time.strftime('%H:%M:%S.%f')[:-3]}")
-        
-        first_chunk_generated = False
-        first_chunk_time = None
-        chunk_count = 0
-        
-        # Pre-normalize input text with splitting enabled for faster first chunk
-        text_norm_start = time.time()
-        normalized_text_chunks = global_cosyvoice.frontend.text_normalize(text, split=True, text_frontend=False)
-        text_norm_time = (time.time() - text_norm_start) * 1000
-        print(f"[WS-TTS] Text normalization time: {text_norm_time:.2f}ms, got {len(normalized_text_chunks)} chunks")
-        
-        # Process all text chunks to stay within TRT limits
-        for chunk_idx, text_chunk in enumerate(normalized_text_chunks):
-            print(f"[WS-TTS] Processing text chunk {chunk_idx + 1}/{len(normalized_text_chunks)}: {text_chunk[:50]}...")
-            
-            # Use inference_zero_shot for each text chunk to maintain proper ordering
-            for i, j in enumerate(global_cosyvoice.inference_zero_shot(
-                text_chunk, 
-                global_normalized_prompt_text, 
-                global_prompt_speech_16k, 
-                zero_shot_spk_id='cached_prompt_spk', 
-                stream=True
-            )):
-                chunk_start_time = time.time()
-                chunk_count += 1  # Keep incrementing chunk_count across all text chunks
-                
-                # Record first chunk timing (only for the very first chunk)
-                if not first_chunk_generated:
-                    first_chunk_time = (chunk_start_time - inference_start_time) * 1000
-                    print(f"[WS-TTS] First chunk generated time: {first_chunk_time:.2f}ms")
-                    first_chunk_generated = True
-                
-                # Convert audio tensor to WAV format for WebSocket streaming
-                buffer = io.BytesIO()
-                torchaudio.save(buffer, j['tts_speech'], global_cosyvoice.sample_rate, format="wav")
-                wav_bytes = buffer.getvalue()
-                buffer.close()
-                
-                chunk_processing_time = (time.time() - chunk_start_time) * 1000
-                total_time_so_far = (time.time() - request_start_time) * 1000
-                
-                print(f"[WS-TTS] Chunk {chunk_count} (text chunk {chunk_idx + 1}) processed in {chunk_processing_time:.2f}ms, total time: {total_time_so_far:.2f}ms")
-                
-                # Yield WAV chunk
-                yield wav_bytes
-        
-    except Exception as e:
-        error_time = (time.time() - request_start_time) * 1000
-        print(f"[WS-TTS] Error after {error_time:.2f}ms: {str(e)}")
-        raise
 
 @app.post("/tts")
 async def generate_tts(request: TTSRequest):
