@@ -1,0 +1,42 @@
+
+(cosyvoice_vllm) root@11e5cf377461:~/CosyVoice# ls /usr/lib/x86_64-linux-gnu/libcudnn*
+/usr/lib/x86_64-linux-gnu/libcudnn.so                     /usr/lib/x86_64-linux-gnu/libcudnn_cnn_infer_static_v8.a
+/usr/lib/x86_64-linux-gnu/libcudnn.so.8                   /usr/lib/x86_64-linux-gnu/libcudnn_cnn_train.so
+/usr/lib/x86_64-linux-gnu/libcudnn.so.8.9.7               /usr/lib/x86_64-linux-gnu/libcudnn_cnn_train.so.8
+/usr/lib/x86_64-linux-gnu/libcudnn_adv_infer.so           /usr/lib/x86_64-linux-gnu/libcudnn_cnn_train.so.8.9.7
+/usr/lib/x86_64-linux-gnu/libcudnn_adv_infer.so.8         /usr/lib/x86_64-linux-gnu/libcudnn_cnn_train_static.a
+/usr/lib/x86_64-linux-gnu/libcudnn_adv_infer.so.8.9.7     /usr/lib/x86_64-linux-gnu/libcudnn_cnn_train_static_v8.a
+/usr/lib/x86_64-linux-gnu/libcudnn_adv_infer_static.a     /usr/lib/x86_64-linux-gnu/libcudnn_ops_infer.so
+/usr/lib/x86_64-linux-gnu/libcudnn_adv_infer_static_v8.a  /usr/lib/x86_64-linux-gnu/libcudnn_ops_infer.so.8
+/usr/lib/x86_64-linux-gnu/libcudnn_adv_train.so           /usr/lib/x86_64-linux-gnu/libcudnn_ops_infer.so.8.9.7
+/usr/lib/x86_64-linux-gnu/libcudnn_adv_train.so.8         /usr/lib/x86_64-linux-gnu/libcudnn_ops_infer_static.a
+/usr/lib/x86_64-linux-gnu/libcudnn_adv_train.so.8.9.7     /usr/lib/x86_64-linux-gnu/libcudnn_ops_infer_static_v8.a
+/usr/lib/x86_64-linux-gnu/libcudnn_adv_train_static.a     /usr/lib/x86_64-linux-gnu/libcudnn_ops_train.so
+/usr/lib/x86_64-linux-gnu/libcudnn_adv_train_static_v8.a  /usr/lib/x86_64-linux-gnu/libcudnn_ops_train.so.8
+/usr/lib/x86_64-linux-gnu/libcudnn_cnn_infer.so           /usr/lib/x86_64-linux-gnu/libcudnn_ops_train.so.8.9.7
+/usr/lib/x86_64-linux-gnu/libcudnn_cnn_infer.so.8         /usr/lib/x86_64-linux-gnu/libcudnn_ops_train_static.a
+/usr/lib/x86_64-linux-gnu/libcudnn_cnn_infer.so.8.9.7     /usr/lib/x86_64-linux-gnu/libcudnn_ops_train_static_v8.a
+/usr/lib/x86_64-linux-gnu/libcudnn_cnn_infer_static.a
+(cosyvoice_vllm) root@11e5cf377461:~/CosyVoice# ls /usr/local/cuda/lib64/libcudnn*
+ls: cannot access '/usr/local/cuda/lib64/libcudnn*': No such file or directory
+(cosyvoice_vllm) root@11e5cf377461:~/CosyVoice# cat /usr/include/cudnn_version.h | grep CUDNN_MAJOR -A 2
+#define CUDNN_MAJOR 8
+#define CUDNN_MINOR 9
+#define CUDNN_PATCHLEVEL 7
+--
+#define CUDNN_VERSION (CUDNN_MAJOR * 1000 + CUDNN_MINOR * 100 + CUDNN_PATCHLEVEL)
+
+/* cannot use constexpr here since this is a C-only file */
+(cosyvoice_vllm) root@11e5cf377461:~/CosyVoice# python -c "import torch; print(f'CUDNN version: {torch.backends.cudnn.version()}')"
+CUDNN version: 90501
+(cosyvoice_vllm) root@11e5cf377461:~/CosyVoice# python -c "
+import onnxruntime as ort
+print('Available providers:', ort.get_available_providers())
+if 'CUDAExecutionProvider' in ort.get_available_providers():
+    print('CUDA provider available')
+else:
+    print('CUDA provider NOT available')
+"
+Available providers: ['TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider']
+CUDA provider available
+(cosyvoice_vllm) root@11e5cf377461:~/CosyVoice# 
