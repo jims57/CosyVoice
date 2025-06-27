@@ -1,3 +1,43 @@
+
+
+"""
+Convert PCM to MP3 Chunks Utility
+
+This script segments a PCM audio file into chunks and converts each chunk to MP3 format.
+This is useful for streaming audio applications where you need to process audio in smaller segments.
+
+Usage:
+    python convert_pcm_to_mp3_chunks.py
+
+Configuration:
+    - segment_duration: Controls how long each audio chunk should be (in seconds)
+      - Smaller values (1-3 seconds): Better for real-time streaming, lower latency
+      - Larger values (5-10 seconds): Better compression efficiency, larger file sizes
+      - Default: 3.0 seconds (good balance between latency and efficiency)
+
+Examples:
+    # For low-latency streaming (1 second chunks)
+    python convert_pcm_to_mp3_chunks.py --pcm-file pcm/mayun_zh.pcm --output-dir mp3_chunks --segment-duration 1.0
+    
+    # For better compression (5 second chunks)  
+    python convert_pcm_to_mp3_chunks.py --pcm-file pcm/mayun_zh.pcm --output-dir mp3_chunks --segment-duration 5.0
+    
+    # For high-quality audio (44.1kHz, stereo, 24-bit)
+    python convert_pcm_to_mp3_chunks.py --pcm-file pcm/mayun_zh.pcm --output-dir mp3_chunks \
+        --sample-rate 44100 --channels 2 --bit-depth 24
+
+Requirements:
+    - ffmpeg must be installed and available in PATH
+    - Input PCM file should be raw PCM data (no WAV header)
+    - Output directory will be created automatically
+
+Output:
+    - Creates numbered MP3 chunks: chunk_000.mp3, chunk_001.mp3, etc.
+    - Each chunk can be played independently or combined later
+    - Use combine_mp3_chunks_into_a_mp3.py to merge chunks back into a single file
+"""
+
+
 import os
 import subprocess
 import tempfile
