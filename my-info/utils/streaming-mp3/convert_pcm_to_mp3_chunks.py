@@ -90,7 +90,9 @@ def segment_pcm_and_convert_to_mp3(pcm_file_path, output_dir, segment_duration=1
             '-segment_time', str(segment_duration),  # Segment duration
             '-segment_format', 'mp3',  # Output format
             '-c:a', 'mp3',  # Audio codec
-            '-b:a', '128k',  # Audio bitrate
+            '-q:a', '4',  # VBR quality (0=best, 9=worst, 4=good for voice)
+            '-af', 'lowpass=f=8000',  # Low-pass filter at 8kHz (good for speech)
+            '-compression_level', '2',  # LAME compression level (0-9, 2=high quality/small size)
             '-avoid_negative_ts', 'disabled',  # Don't add padding
             '-break_non_keyframes', '1',  # Allow breaking at non-keyframes for precise timing
             output_pattern  # Output pattern
