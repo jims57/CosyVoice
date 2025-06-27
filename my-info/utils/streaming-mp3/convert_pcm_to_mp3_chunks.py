@@ -153,7 +153,7 @@ def main():
     segment_pcm_and_convert_to_mp3(
         pcm_file_path=pcm_file,
         output_dir=mp3_dir,
-        segment_duration=1.0,  # 1 second per segment
+        segment_duration=0.2,  # 1 second per segment
         sample_rate=16000,     # 16kHz
         channels=1,            # mono
         bit_depth=16           # 16-bit
