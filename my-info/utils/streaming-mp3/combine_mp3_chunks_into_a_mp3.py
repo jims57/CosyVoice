@@ -47,18 +47,17 @@ def combine_mp3_chunks(chunks_dir, output_dir, output_filename="combined_audio.m
             print(f"Deleting existing file: {output_path}")
             os.unlink(output_path)
         
-        # Create a temporary file list for ffmpeg concat demuxer
+        # Create file list for ffmpeg concat (NO CLEANING NEEDED)
         with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as temp_file:
             temp_file_path = temp_file.name
             for filename in mp3_files:
                 file_path = os.path.join(chunks_dir, filename)
-                # Write file path with proper escaping for ffmpeg
                 temp_file.write(f"file '{os.path.abspath(file_path)}'\n")
         
         try:
             print(f"\nCombining chunks into: {output_path}")
             
-            # Use ffmpeg concat demuxer to combine MP3 files
+            # Use ffmpeg concat demuxer directly on segment-muxer generated chunks
             ffmpeg_cmd = [
                 'ffmpeg',
                 '-y',  # Overwrite output file
@@ -99,12 +98,179 @@ def combine_mp3_chunks(chunks_dir, output_dir, output_filename="combined_audio.m
                 print(f"✗ Error combining chunks: {result.stderr}")
                 
         finally:
-            # Clean up temporary file list
+            # Clean up temporary files
             if os.path.exists(temp_file_path):
                 os.unlink(temp_file_path)
         
     except Exception as e:
         print(f"Error combining MP3 chunks: {e}")
+
+def remove_lame_padding(input_path, output_path):
+    """
+    Remove LAME padding (55555555 patterns) from MP3 file
+    
+    Args:
+        input_path (str): Input MP3 file path
+        output_path (str): Output cleaned MP3 file path
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        with open(input_path, 'rb') as input_file:
+            data = input_file.read()
+        
+        # Find the last occurrence of meaningful audio data
+        # Look for the end of real MP3 frames before LAME padding starts
+        padding_pattern = b'\x55\x55\x55\x55'
+        
+        # Find where padding starts (multiple consecutive 0x55 bytes)
+        padding_start = -1
+        i = len(data) - 1
+        consecutive_55_count = 0
+        
+        # Scan backwards to find where padding begins
+        while i >= 0:
+            if data[i] == 0x55:
+                consecutive_55_count += 1
+                if consecutive_55_count >= 20:  # Found significant padding
+                    padding_start = i + 20
+                    break
+            else:
+                consecutive_55_count = 0
+            i -= 1
+        
+        if padding_start > 0:
+            # Remove padding and write cleaned data
+            cleaned_data = data[:padding_start]
+            with open(output_path, 'wb') as output_file:
+                output_file.write(cleaned_data)
+            return True
+        else:
+            # No significant padding found, copy original
+            with open(output_path, 'wb') as output_file:
+                output_file.write(data)
+            return True
+            
+    except Exception as e:
+        print(f"  Error cleaning {input_path}: {e}")
+        return False
+
+def extract_mp3_frames(data):
+    """
+    Extract raw MP3 audio frames from MP3 data, skipping ID3 tags and metadata
+    
+    Args:
+        data (bytes): MP3 file data
+        
+    Returns:
+        list: List of MP3 audio frame bytes
+    """
+    frames = []
+    i = 0
+    
+    print(f"  Analyzing {len(data)} bytes for MP3 frames...")
+    
+    while i < len(data) - 4:
+        # Look for MP3 frame sync word: 0xFF followed by 0xFX (where X >= 0xE)
+        if data[i] == 0xFF and (data[i + 1] & 0xE0) == 0xE0:
+            # Found potential MP3 frame header
+            try:
+                # Parse MP3 frame header to get frame length
+                frame_length = get_mp3_frame_length(data[i:i+4])
+                
+                if frame_length > 0 and i + frame_length <= len(data):
+                    # Verify next frame sync or end of data
+                    next_pos = i + frame_length
+                    if (next_pos >= len(data) - 4 or 
+                        (data[next_pos] == 0xFF and (data[next_pos + 1] & 0xE0) == 0xE0)):
+                        # Extract the complete frame
+                        frame = data[i:i + frame_length]
+                        frames.append(frame)
+                        i = next_pos
+                        continue
+                        
+                i += 1
+            except:
+                i += 1
+        else:
+            i += 1
+    
+    print(f"  Found {len(frames)} MP3 frames")
+    return frames
+
+def get_mp3_frame_length(header):
+    """
+    Calculate MP3 frame length from 4-byte header
+    
+    Args:
+        header (bytes): 4-byte MP3 frame header
+        
+    Returns:
+        int: Frame length in bytes, or 0 if invalid
+    """
+    if len(header) < 4:
+        return 0
+        
+    # Parse MP3 header bits
+    if header[0] != 0xFF or (header[1] & 0xE0) != 0xE0:
+        return 0
+    
+    # MPEG version
+    version_bits = (header[1] >> 3) & 0x03
+    if version_bits == 1:  # Reserved
+        return 0
+        
+    # Layer
+    layer_bits = (header[1] >> 1) & 0x03
+    if layer_bits == 0:  # Reserved
+        return 0
+    
+    # Bitrate index
+    bitrate_index = (header[2] >> 4) & 0x0F
+    if bitrate_index == 0 or bitrate_index == 15:  # Free or bad
+        return 0
+    
+    # Sample rate index  
+    sample_rate_index = (header[2] >> 2) & 0x03
+    if sample_rate_index == 3:  # Reserved
+        return 0
+        
+    # Padding bit
+    padding = (header[2] >> 1) & 0x01
+    
+    # Bitrate tables (kbps)
+    if version_bits == 3:  # MPEG-1
+        if layer_bits == 1:  # Layer III
+            bitrates = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0]
+            sample_rates = [44100, 48000, 32000, 0]
+        else:
+            return 0
+    elif version_bits == 2:  # MPEG-2
+        if layer_bits == 1:  # Layer III  
+            bitrates = [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 0]
+            sample_rates = [22050, 24000, 16000, 0]
+        else:
+            return 0
+    else:
+        return 0
+        
+    bitrate = bitrates[bitrate_index] * 1000  # Convert to bps
+    sample_rate = sample_rates[sample_rate_index]
+    
+    if bitrate == 0 or sample_rate == 0:
+        return 0
+    
+    # Calculate frame length
+    if layer_bits == 1:  # Layer III
+        if version_bits == 3:  # MPEG-1
+            frame_length = int((144 * bitrate) / sample_rate) + padding
+        else:  # MPEG-2
+            frame_length = int((72 * bitrate) / sample_rate) + padding
+    else:
+        return 0
+        
+    return frame_length if frame_length > 4 else 0
 
 def main():
     # Get the directory of this script

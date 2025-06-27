@@ -47,31 +47,26 @@ def segment_pcm_and_convert_to_mp3(pcm_file_path, output_dir, segment_duration=1
     Args:
         pcm_file_path (str): Path to the input PCM file
         output_dir (str): Directory to save MP3 chunks
-        segment_duration (float): Duration of each segment in seconds (default: 3.0)
+        segment_duration (float): Duration of each segment in seconds (default: 1.0)
         sample_rate (int): Sample rate in Hz (default: 16000)
         channels (int): Number of channels (default: 1 for mono)
         bit_depth (int): Bit depth (default: 16)
     """
     try:
-        # Calculate bytes per second and segment size
-        bytes_per_second = sample_rate * channels * (bit_depth // 8)
-        segment_bytes = int(bytes_per_second * segment_duration)
-        
         print(f"PCM file parameters:")
         print(f"  Sample rate: {sample_rate} Hz")
         print(f"  Channels: {channels}")
         print(f"  Bit depth: {bit_depth}")
-        print(f"  Bytes per second: {bytes_per_second}")
         print(f"  Segment duration: {segment_duration} seconds")
-        print(f"  Bytes per segment: {segment_bytes}")
         
-        # Read the entire PCM file
+        # Read the entire PCM file to get total info
         with open(pcm_file_path, 'rb') as pcm_file:
             pcm_data = pcm_file.read()
         
         total_bytes = len(pcm_data)
+        bytes_per_second = sample_rate * channels * (bit_depth // 8)
         total_duration = total_bytes / bytes_per_second
-        expected_chunks = (total_bytes + segment_bytes - 1) // segment_bytes  # Ceiling division
+        expected_chunks = int(total_duration / segment_duration) + (1 if total_duration % segment_duration > 0 else 0)
         
         print(f"\nFile info:")
         print(f"  Total file size: {total_bytes} bytes")
@@ -81,63 +76,51 @@ def segment_pcm_and_convert_to_mp3(pcm_file_path, output_dir, segment_duration=1
         # Create output directory if it doesn't exist
         os.makedirs(output_dir, exist_ok=True)
         
-        chunk_count = 0
-        offset = 0
+        # Use ffmpeg segment muxer for gapless chunks
+        output_pattern = os.path.join(output_dir, "chunk_%d.mp3")
         
-        while offset < total_bytes:
-            chunk_count += 1
-            
-            # Calculate end position for this chunk
-            end_pos = min(offset + segment_bytes, total_bytes)
-            chunk_data = pcm_data[offset:end_pos]
-            chunk_size = len(chunk_data)
-            chunk_duration = chunk_size / bytes_per_second
-            
-            print(f"\nProcessing chunk {chunk_count}:")
-            print(f"  Offset: {offset} bytes")
-            print(f"  Chunk size: {chunk_size} bytes")
-            print(f"  Chunk duration: {chunk_duration:.2f} seconds")
-            
-            # Create temporary PCM file for this chunk
-            with tempfile.NamedTemporaryFile(suffix='.pcm', delete=False) as temp_pcm:
-                temp_pcm.write(chunk_data)
-                temp_pcm_path = temp_pcm.name
-            
-            try:
-                # Define output MP3 file path
-                mp3_filename = f"chunk_{chunk_count}.mp3"
-                mp3_path = os.path.join(output_dir, mp3_filename)
-                
-                # Convert PCM chunk to MP3 using ffmpeg
-                ffmpeg_cmd = [
-                    'ffmpeg',
-                    '-y',  # Overwrite output files
-                    '-f', 's16le',  # Input format: signed 16-bit little-endian
-                    '-ar', str(sample_rate),  # Sample rate
-                    '-ac', str(channels),  # Number of channels
-                    '-i', temp_pcm_path,  # Input file
-                    '-codec:a', 'mp3',  # Audio codec
-                    '-b:a', '128k',  # Audio bitrate
-                    mp3_path  # Output file
-                ]
-                
-                # Run ffmpeg command
-                result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
-                
-                if result.returncode == 0:
-                    print(f"  ✓ Successfully created {mp3_filename}")
+        ffmpeg_cmd = [
+            'ffmpeg',
+            '-y',  # Overwrite output files
+            '-f', 's16le',  # Input format: signed 16-bit little-endian
+            '-ar', str(sample_rate),  # Sample rate
+            '-ac', str(channels),  # Number of channels
+            '-i', pcm_file_path,  # Input file
+            '-f', 'segment',  # Use segment muxer
+            '-segment_time', str(segment_duration),  # Segment duration
+            '-segment_format', 'mp3',  # Output format
+            '-c:a', 'mp3',  # Audio codec
+            '-b:a', '128k',  # Audio bitrate
+            '-avoid_negative_ts', 'disabled',  # Don't add padding
+            '-break_non_keyframes', '1',  # Allow breaking at non-keyframes for precise timing
+            output_pattern  # Output pattern
+        ]
+        
+        print(f"\nSegmenting PCM to MP3 chunks...")
+        print(f"Output pattern: {output_pattern}")
+        
+        # Run ffmpeg command
+        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            # Count created files
+            created_files = []
+            chunk_num = 0
+            while True:
+                chunk_file = os.path.join(output_dir, f"chunk_{chunk_num}.mp3")
+                if os.path.exists(chunk_file):
+                    created_files.append(chunk_file)
+                    file_size = os.path.getsize(chunk_file)
+                    print(f"  ✓ Created chunk_{chunk_num}.mp3 ({file_size/1024:.1f} KB)")
+                    chunk_num += 1
                 else:
-                    print(f"  ✗ Error creating {mp3_filename}: {result.stderr}")
-                
-            finally:
-                # Clean up temporary PCM file
-                if os.path.exists(temp_pcm_path):
-                    os.unlink(temp_pcm_path)
+                    break
             
-            # Move to next chunk
-            offset = end_pos
-        
-        print(f"\n✓ Conversion complete! Created {chunk_count} MP3 chunks in {output_dir}")
+            print(f"\n✓ Segmentation complete! Created {len(created_files)} MP3 chunks in {output_dir}")
+            print("✓ Chunks are optimized for gapless playback")
+            
+        else:
+            print(f"✗ Error during segmentation: {result.stderr}")
         
     except Exception as e:
         print(f"Error processing file: {e}")
