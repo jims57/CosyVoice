@@ -12,6 +12,8 @@ import io
 import asyncio
 import json
 import base64
+import os
+import glob
 from typing import Optional
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
@@ -276,6 +278,84 @@ async def websocket_tts(websocket: WebSocket):
         print(f"[WS-TTS] WebSocket error: {str(e)}")
         try:
             await websocket.send_text(json.dumps({"error": f"WebSocket error: {str(e)}"}))
+        except:
+            pass
+
+@app.websocket("/mp3-stream")
+async def websocket_mp3_stream(websocket: WebSocket):
+    """
+    WebSocket endpoint that streams MP3 files from mp3_chunks folder in order
+    """
+    await websocket.accept()
+    print(f"[MP3-STREAM] WebSocket connection established")
+    
+    try:
+        # Get the directory where this script is located
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        mp3_chunks_dir = os.path.join(script_dir, "mp3_chunks")
+        
+        if not os.path.exists(mp3_chunks_dir):
+            await websocket.send_text(json.dumps({"error": f"mp3_chunks directory not found at {mp3_chunks_dir}"}))
+            return
+        
+        # Get all MP3 files and sort them by chunk number
+        mp3_pattern = os.path.join(mp3_chunks_dir, "chunk_*.mp3")
+        mp3_files = glob.glob(mp3_pattern)
+        
+        if not mp3_files:
+            await websocket.send_text(json.dumps({"error": "No MP3 chunk files found in mp3_chunks directory"}))
+            return
+        
+        # Sort files by chunk number (extract number from filename)
+        def extract_chunk_number(filename):
+            try:
+                basename = os.path.basename(filename)
+                # Extract number between 'chunk_' and '.mp3'
+                num_str = basename.replace('chunk_', '').replace('.mp3', '')
+                return int(num_str)
+            except:
+                return float('inf')  # Put invalid files at the end
+        
+        mp3_files.sort(key=extract_chunk_number)
+        
+        print(f"[MP3-STREAM] Found {len(mp3_files)} MP3 chunks to stream")
+        
+        # Stream each MP3 file in order
+        for i, mp3_file in enumerate(mp3_files):
+            try:
+                start_time = time.time()
+                
+                # Read MP3 file
+                with open(mp3_file, 'rb') as f:
+                    mp3_data = f.read()
+                
+                read_time = (time.time() - start_time) * 1000
+                
+                # Send MP3 data immediately
+                send_start = time.time()
+                await websocket.send_bytes(mp3_data)
+                send_time = (time.time() - send_start) * 1000
+                
+                file_size_kb = len(mp3_data) / 1024
+                total_time = read_time + send_time
+                
+                print(f"[MP3-STREAM] Streamed {os.path.basename(mp3_file)} ({file_size_kb:.1f}KB) - Read: {read_time:.2f}ms, Send: {send_time:.2f}ms, Total: {total_time:.2f}ms")
+                
+                # Small async sleep to allow other tasks
+                await asyncio.sleep(0)
+                
+            except Exception as file_error:
+                print(f"[MP3-STREAM] Error processing {mp3_file}: {str(file_error)}")
+                await websocket.send_text(json.dumps({"error": f"Error processing {os.path.basename(mp3_file)}: {str(file_error)}"}))
+        
+        print(f"[MP3-STREAM] Completed streaming all {len(mp3_files)} MP3 chunks")
+        
+    except WebSocketDisconnect:
+        print(f"[MP3-STREAM] WebSocket connection disconnected")
+    except Exception as e:
+        print(f"[MP3-STREAM] WebSocket error: {str(e)}")
+        try:
+            await websocket.send_text(json.dumps({"error": f"MP3 streaming error: {str(e)}"}))
         except:
             pass
 
