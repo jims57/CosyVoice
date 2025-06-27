@@ -1,5 +1,3 @@
-
-
 """
 Convert PCM to MP3 Chunks Utility
 
@@ -42,7 +40,7 @@ import os
 import subprocess
 import tempfile
 
-def segment_pcm_and_convert_to_mp3(pcm_file_path, output_dir, segment_duration=3.0, sample_rate=16000, channels=1, bit_depth=16):
+def segment_pcm_and_convert_to_mp3(pcm_file_path, output_dir, segment_duration=1.0, sample_rate=16000, channels=1, bit_depth=16):
     """
     Segment a PCM file into chunks and convert each chunk to MP3
     
@@ -172,7 +170,7 @@ def main():
     segment_pcm_and_convert_to_mp3(
         pcm_file_path=pcm_file,
         output_dir=mp3_dir,
-        segment_duration=3.0,  # 3 seconds per segment
+        segment_duration=1.0,  # 1 second per segment
         sample_rate=16000,     # 16kHz
         channels=1,            # mono
         bit_depth=16           # 16-bit

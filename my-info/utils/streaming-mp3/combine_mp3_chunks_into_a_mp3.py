@@ -39,6 +39,14 @@ def combine_mp3_chunks(chunks_dir, output_dir, output_filename="combined_audio.m
         # Create output directory if it doesn't exist
         os.makedirs(output_dir, exist_ok=True)
         
+        # Define output file path
+        output_path = os.path.join(output_dir, output_filename)
+        
+        # Delete existing output file if it exists
+        if os.path.exists(output_path):
+            print(f"Deleting existing file: {output_path}")
+            os.unlink(output_path)
+        
         # Create a temporary file list for ffmpeg concat demuxer
         with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as temp_file:
             temp_file_path = temp_file.name
@@ -48,9 +56,6 @@ def combine_mp3_chunks(chunks_dir, output_dir, output_filename="combined_audio.m
                 temp_file.write(f"file '{os.path.abspath(file_path)}'\n")
         
         try:
-            # Define output file path
-            output_path = os.path.join(output_dir, output_filename)
-            
             print(f"\nCombining chunks into: {output_path}")
             
             # Use ffmpeg concat demuxer to combine MP3 files
