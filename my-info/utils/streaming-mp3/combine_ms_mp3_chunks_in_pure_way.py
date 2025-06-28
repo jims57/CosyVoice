@@ -19,19 +19,19 @@ def combine_mp3_chunks_binary():
     # Get all MP3 files in the chunks directory
     mp3_files = []
     for filename in os.listdir(chunks_dir):
-        if filename.endswith('.mp3') and filename.startswith('audio_'):
+        if filename.endswith('.mp3') and filename.startswith('chunk_'):
             mp3_files.append(filename)
     
     if not mp3_files:
         print(f"No MP3 chunk files found in {chunks_dir}")
         return
     
-    # Sort files by timestamp to ensure correct order
-    def extract_timestamp(filename):
-        match = re.search(r'audio_(\d+)\.mp3', filename)
+    # Sort files by chunk number to ensure correct order
+    def extract_chunk_number(filename):
+        match = re.search(r'chunk_(\d+)\.mp3', filename)
         return int(match.group(1)) if match else 0
     
-    mp3_files.sort(key=extract_timestamp)
+    mp3_files.sort(key=extract_chunk_number)
     
     print(f"Found {len(mp3_files)} MP3 chunks:")
     for i, filename in enumerate(mp3_files, 1):
