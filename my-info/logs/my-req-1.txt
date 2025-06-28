@@ -1,0 +1,3 @@
+does above code support streaming playback? 
+i mean these mp3 streams are arriving contineously from backend, i want to play the first chunk immediately and its subsequent mp3 streams automatically without clicking and data sound(like a integral mp3 playing experience)
+
