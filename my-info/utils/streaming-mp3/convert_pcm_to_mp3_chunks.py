@@ -40,23 +40,28 @@ import os
 import subprocess
 import tempfile
 
-def segment_pcm_and_convert_to_mp3(pcm_file_path, output_dir, segment_duration=1.0, sample_rate=16000, channels=1, bit_depth=16):
+def segment_pcm_and_convert_to_mp3(pcm_file_path, output_dir, segment_duration=1.0, input_sample_rate=16000, output_sample_rate=48000, channels=1, bit_depth=16):
     """
-    Segment a PCM file into chunks and convert each chunk to MP3
+    Segment a PCM file into chunks and convert each chunk to pure raw MP3 frames
     
     Args:
         pcm_file_path (str): Path to the input PCM file
         output_dir (str): Directory to save MP3 chunks
         segment_duration (float): Duration of each segment in seconds (default: 1.0)
-        sample_rate (int): Sample rate in Hz (default: 16000)
+        input_sample_rate (int): Input PCM sample rate in Hz (default: 16000)
+        output_sample_rate (int): Output MP3 sample rate in Hz (default: 48000 for FFF3E4C4)
         channels (int): Number of channels (default: 1 for mono)
         bit_depth (int): Bit depth (default: 16)
     """
     try:
-        print(f"PCM file parameters:")
-        print(f"  Sample rate: {sample_rate} Hz")
-        print(f"  Channels: {channels}")
+        print(f"PCM input parameters:")
+        print(f"  Input sample rate: {input_sample_rate} Hz (16kHz PCM)")
+        print(f"  Channels: {channels} (Mono)")
         print(f"  Bit depth: {bit_depth}")
+        print(f"")
+        print(f"MP3 output parameters (pure raw audio frames):")
+        print(f"  Output sample rate: {output_sample_rate} Hz (48kHz for MPEG-1)")
+        print(f"  Target: Raw MP3 frames starting with FFF3E4C4")
         print(f"  Segment duration: {segment_duration} seconds")
         
         # Read the entire PCM file to get total info
@@ -64,65 +69,122 @@ def segment_pcm_and_convert_to_mp3(pcm_file_path, output_dir, segment_duration=1
             pcm_data = pcm_file.read()
         
         total_bytes = len(pcm_data)
-        bytes_per_second = sample_rate * channels * (bit_depth // 8)
+        bytes_per_second = input_sample_rate * channels * (bit_depth // 8)
         total_duration = total_bytes / bytes_per_second
-        expected_chunks = int(total_duration / segment_duration) + (1 if total_duration % segment_duration > 0 else 0)
+        bytes_per_segment = int(bytes_per_second * segment_duration)
         
-        print(f"\nFile info:")
+        print(f"\nInput file info:")
         print(f"  Total file size: {total_bytes} bytes")
         print(f"  Total duration: {total_duration:.2f} seconds")
-        print(f"  Expected chunks: {expected_chunks}")
+        print(f"  Bytes per segment: {bytes_per_segment}")
         
         # Create output directory if it doesn't exist
         os.makedirs(output_dir, exist_ok=True)
         
-        # Use ffmpeg segment muxer for gapless chunks
-        output_pattern = os.path.join(output_dir, "chunk_%d.mp3")
-        
-        ffmpeg_cmd = [
-            'ffmpeg',
-            '-y',  # Overwrite output files
-            '-f', 's16le',  # Input format: signed 16-bit little-endian
-            '-ar', str(sample_rate),  # Sample rate
-            '-ac', str(channels),  # Number of channels
-            '-i', pcm_file_path,  # Input file
-            '-f', 'segment',  # Use segment muxer
-            '-segment_time', str(segment_duration),  # Segment duration
-            '-segment_format', 'mp3',  # Output format
-            '-c:a', 'mp3',  # Audio codec
-            '-q:a', '4',  # VBR quality (0=best, 9=worst, 4=good for voice)
-            '-af', 'lowpass=f=8000',  # Low-pass filter at 8kHz (good for speech)
-            '-compression_level', '2',  # LAME compression level (0-9, 2=high quality/small size)
-            '-avoid_negative_ts', 'disabled',  # Don't add padding
-            '-break_non_keyframes', '1',  # Allow breaking at non-keyframes for precise timing
-            output_pattern  # Output pattern
-        ]
-        
-        print(f"\nSegmenting PCM to MP3 chunks...")
-        print(f"Output pattern: {output_pattern}")
-        
-        # Run ffmpeg command
-        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
-        
-        if result.returncode == 0:
-            # Count created files
-            created_files = []
-            chunk_num = 0
-            while True:
+        # Process each segment separately to get pure raw frames
+        chunk_num = 0
+        for start_byte in range(0, total_bytes, bytes_per_segment):
+            end_byte = min(start_byte + bytes_per_segment, total_bytes)
+            segment_data = pcm_data[start_byte:end_byte]
+            
+            if len(segment_data) == 0:
+                break
+            
+            # Create temporary PCM file for this segment
+            with tempfile.NamedTemporaryFile(suffix='.pcm', delete=False) as temp_pcm:
+                temp_pcm.write(segment_data)
+                temp_pcm_path = temp_pcm.name
+            
+            try:
+                # Output file for this chunk
                 chunk_file = os.path.join(output_dir, f"chunk_{chunk_num}.mp3")
-                if os.path.exists(chunk_file):
-                    created_files.append(chunk_file)
-                    file_size = os.path.getsize(chunk_file)
-                    print(f"  ✓ Created chunk_{chunk_num}.mp3 ({file_size/1024:.1f} KB)")
-                    chunk_num += 1
+                
+                # Convert segment to raw MP3 frames using data format
+                ffmpeg_cmd = [
+                    'ffmpeg',
+                    '-y',  # Overwrite output files
+                    '-f', 's16le',  # Input format
+                    '-ar', str(input_sample_rate),  # Input sample rate
+                    '-ac', str(channels),  # Input channels
+                    '-i', temp_pcm_path,  # Input segment
+                    '-f', 'data',  # Raw data output format
+                    '-c:a', 'libmp3lame',  # MP3 encoder
+                    '-b:a', '320k',  # 320 kbps
+                    '-ar', str(output_sample_rate),  # Resample to 48kHz
+                    '-ac', '1',  # Mono output
+                    '-fflags', '+bitexact',  # Reproducible
+                    chunk_file  # Output file
+                ]
+                
+                # Try data format first
+                result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+                
+                if result.returncode != 0:
+                    # If data format fails, try mp3 format with aggressive header removal
+                    ffmpeg_cmd = [
+                        'ffmpeg',
+                        '-y',  # Overwrite output files
+                        '-f', 's16le',  # Input format
+                        '-ar', str(input_sample_rate),  # Input sample rate
+                        '-ac', str(channels),  # Input channels
+                        '-i', temp_pcm_path,  # Input segment
+                        '-f', 'mp3',  # MP3 format
+                        '-c:a', 'libmp3lame',  # MP3 encoder
+                        '-b:a', '320k',  # 320 kbps
+                        '-ar', str(output_sample_rate),  # Resample to 48kHz
+                        '-ac', '1',  # Mono output
+                        '-write_id3v1', '0',  # No ID3v1
+                        '-write_id3v2', '0',  # No ID3v2
+                        '-id3v2_version', '0',  # No ID3v2
+                        '-write_xing', '0',  # No Xing header
+                        '-fflags', '+bitexact',
+                        chunk_file  # Output file
+                    ]
+                    
+                    result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+                
+                if result.returncode == 0 and os.path.exists(chunk_file):
+                    # Post-process to remove any remaining headers
+                    with open(chunk_file, 'rb') as f:
+                        data = f.read()
+                    
+                    # Find the first MP3 frame sync (FFF3 or FFF2)
+                    mp3_start = -1
+                    for i in range(len(data) - 1):
+                        if data[i] == 0xFF and (data[i + 1] & 0xE0) == 0xE0:
+                            mp3_start = i
+                            break
+                    
+                    if mp3_start >= 0:
+                        # Extract only the MP3 frames
+                        pure_mp3_data = data[mp3_start:]
+                        with open(chunk_file, 'wb') as f:
+                            f.write(pure_mp3_data)
+                        
+                        file_size = len(pure_mp3_data)
+                        
+                        # Verify the header
+                        header_hex = pure_mp3_data[:4].hex().upper()
+                        if header_hex.startswith('FFF3E4'):
+                            sync_status = f"✓ {header_hex} (pure frames)"
+                        else:
+                            sync_status = f"? {header_hex} (check format)"
+                        
+                        print(f"  ✓ Created chunk_{chunk_num}.mp3 ({file_size/1024:.1f} KB) - {sync_status}")
+                        chunk_num += 1
+                    else:
+                        print(f"  ✗ No MP3 frames found in chunk_{chunk_num}")
+                        os.remove(chunk_file)
                 else:
-                    break
-            
-            print(f"\n✓ Segmentation complete! Created {len(created_files)} MP3 chunks in {output_dir}")
-            print("✓ Chunks are optimized for gapless playback")
-            
-        else:
-            print(f"✗ Error during segmentation: {result.stderr}")
+                    print(f"  ✗ Failed to create chunk_{chunk_num}: {result.stderr}")
+                    
+            finally:
+                # Clean up temporary file
+                os.unlink(temp_pcm_path)
+        
+        print(f"\n✓ Created {chunk_num} pure MP3 frame chunks")
+        print("✓ Removed all headers - chunks contain only raw MP3 frames")
+        print("✓ Ready for binary concatenation")
         
     except Exception as e:
         print(f"Error processing file: {e}")
@@ -151,14 +213,15 @@ def main():
         print("Please install ffmpeg: https://ffmpeg.org/download.html")
         return
     
-    # Convert the file with specified parameters
+    # Convert with resampling: 16kHz PCM input → 48kHz MP3 output
     segment_pcm_and_convert_to_mp3(
         pcm_file_path=pcm_file,
         output_dir=mp3_dir,
-        segment_duration=1,  # 1 second per segment
-        sample_rate=16000,     # 16kHz
-        channels=1,            # mono
-        bit_depth=16           # 16-bit
+        segment_duration=1.0,      # 1 second per segment
+        input_sample_rate=16000,   # Input PCM: 16kHz mono
+        output_sample_rate=48000,  # Output MP3: 48kHz mono (for FFF3E4C4)
+        channels=1,                # mono
+        bit_depth=16               # 16-bit
     )
 
 if __name__ == "__main__":
