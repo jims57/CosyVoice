@@ -15,10 +15,12 @@ Configuration:
 
 Examples:
     # For low-latency streaming (1 second chunks)
-    python convert_pcm_to_mp3_chunks.py --pcm-file pcm/mayun_zh.pcm --output-dir mp3_chunks --segment-duration 1.0
+    python convert_pcm_to_mp3_chunks.py --pcm-file pcm/mayun_zh.pcm --output-dir mp3_chunks --segment-duration 1.0 --output-sample-rate 48000
+    python convert_pcm_to_mp3_chunks.py --pcm-file pcm/a_man_die.pcm --output-dir mp3_chunks --segment-duration 1.0 --output-sample-rate 16000
     
     # For better compression (5 second chunks)  
-    python convert_pcm_to_mp3_chunks.py --pcm-file pcm/mayun_zh.pcm --output-dir mp3_chunks --segment-duration 5.0
+    python convert_pcm_to_mp3_chunks.py --pcm-file pcm/mayun_zh.pcm --output-dir mp3_chunks --segment-duration 5.0 --output-sample-rate 48000
+    python convert_pcm_to_mp3_chunks.py --pcm-file pcm/a_man_die.pcm --output-dir mp3_chunks --segment-duration 5.0 --output-sample-rate 16000
     
     # For high-quality audio (44.1kHz, stereo, 24-bit)
     python convert_pcm_to_mp3_chunks.py --pcm-file pcm/mayun_zh.pcm --output-dir mp3_chunks \
