@@ -161,6 +161,7 @@ async def websocket_tts(websocket: WebSocket):
             
             # Extract parameters with defaults
             text = request_data.get("text", "")
+            save_audio_files = request_data.get("saveAudioFiles", False)
             audio_format = "wav"  # Always use WAV for WebSocket
             
             if not text:
@@ -171,9 +172,19 @@ async def websocket_tts(websocket: WebSocket):
                 await websocket.send_text(json.dumps({"error": "Model not initialized"}))
                 continue
             
+            # Setup folder for saving audio chunks if requested
+            chunk_save_folder = None
+            chunk_file_counter = 0
+            if save_audio_files:
+                chunk_save_folder = os.path.join(os.path.dirname(__file__), "cosy_mp3_chunks")
+                os.makedirs(chunk_save_folder, exist_ok=True)
+                print(f"[WS-TTS] Created/verified chunk save folder: {chunk_save_folder}")
+            
             # Generate audio
             print(f"Generating audio for text: {text[:50]}{'...' if len(text) > 50 else ''}")
-            
+            if save_audio_files:
+                print(f"[WS-TTS] Will save WAV chunks to files")
+
             before_inference_time = time.time()
             elapsed_since_start = (before_inference_time - start_time) * 1000
             print(f"Time before inference: {elapsed_since_start:.2f} ms since start")
@@ -236,6 +247,18 @@ async def websocket_tts(websocket: WebSocket):
                         wav_bytes = buffer.getvalue()
                         buffer.close()
                         
+                        # Save WAV chunk to file if requested
+                        if save_audio_files and chunk_save_folder:
+                            chunk_filename = f"chunk_{chunk_file_counter}.wav"
+                            chunk_filepath = os.path.join(chunk_save_folder, chunk_filename)
+                            try:
+                                with open(chunk_filepath, 'wb') as f:
+                                    f.write(wav_bytes)
+                                print(f"[WS-TTS] Saved {chunk_filename} ({len(wav_bytes)} bytes)")
+                                chunk_file_counter += 1
+                            except Exception as save_error:
+                                print(f"[WS-TTS] Error saving chunk file: {save_error}")
+                        
                         audio_convert_time = (time.time() - audio_convert_start) * 1000
                         chunk_processing_time = (time.time() - chunk_start_time) * 1000
                         total_time_so_far = (time.time() - start_time) * 1000
@@ -267,6 +290,9 @@ async def websocket_tts(websocket: WebSocket):
                 
                 generation_time = time.time() - start_time
                 print(f"[WS-TTS] 🏁 Audio generated in {generation_time:.2f} seconds")
+                
+                if save_audio_files:
+                    print(f"[WS-TTS] Saved {chunk_file_counter} WAV chunk files to {chunk_save_folder}")
                 
             except Exception as inference_error:
                 print(f"Inference error: {str(inference_error)}")
