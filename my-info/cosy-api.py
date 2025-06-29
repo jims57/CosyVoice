@@ -23,6 +23,9 @@ import time
 import torchaudio
 from cosyvoice.cli.cosyvoice import CosyVoice2
 from cosyvoice.utils.file_utils import load_wav
+import subprocess
+import threading
+from queue import Queue
 
 # API model for TTS request
 class TTSRequest(BaseModel):
@@ -311,6 +314,208 @@ async def generate_tts(request: TTSRequest):
         media_type=media_type,
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+@app.websocket("/streaming-tts")
+async def websocket_streaming_tts(websocket: WebSocket):
+    """
+    WebSocket TTS endpoint that streams gapless MP3 chunks as they're generated
+    """
+    await websocket.accept()
+    print(f"[STREAMING-TTS] WebSocket connection established")
+    
+    try:
+        while True:
+            # Receive TTS request from client
+            data = await websocket.receive_text()
+            request_data = json.loads(data)
+            
+            # Start timing
+            start_time = time.time()
+            print(f"[STREAMING-TTS] Request start time: {time.strftime('%H:%M:%S.%f')[:-3]}")
+            
+            # Extract text parameter
+            text = request_data.get("text", "")
+            
+            if not text:
+                await websocket.send_text(json.dumps({"error": "Text is required"}))
+                continue
+            
+            if global_cosyvoice is None or global_prompt_speech_16k is None:
+                await websocket.send_text(json.dumps({"error": "Model not initialized"}))
+                continue
+            
+            print(f"[STREAMING-TTS] Generating MP3 chunks for text: {text[:50]}{'...' if len(text) > 50 else ''}")
+            
+            try:
+                # Setup continuous MP3 encoder
+                encoder_process = subprocess.Popen([
+                    'ffmpeg',
+                    '-f', 'f32le',           # CosyVoice outputs float32
+                    '-ar', str(global_cosyvoice.sample_rate),  # CosyVoice sample rate (24000)
+                    '-ac', '1',              # Mono
+                    '-i', 'pipe:0',          # Read from stdin
+                    '-c:a', 'libmp3lame',    # MP3 encoder
+                    '-b:a', '320k',          # 320 kbps
+                    '-ar', '16000',          # Resample to 16kHz for Android
+                    '-ac', '1',              # Mono output
+                    '-f', 'mp3',             # MP3 format
+                    '-write_id3v1', '0',     # No ID3v1
+                    '-write_id3v2', '0',     # No ID3v2
+                    '-id3v2_version', '0',   # No ID3v2
+                    '-write_xing', '0',      # No Xing header
+                    '-fflags', '+bitexact',
+                    'pipe:1'                 # Output to stdout
+                ], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                
+                print(f"[STREAMING-TTS] MP3 encoder process started")
+                
+                # Queue to collect MP3 data
+                mp3_queue = Queue()
+                encoder_error = None
+                
+                def read_mp3_output():
+                    """Read MP3 data from encoder in separate thread"""
+                    nonlocal encoder_error
+                    try:
+                        chunk_size = 8192  # Read in 8KB chunks
+                        while True:
+                            mp3_data = encoder_process.stdout.read(chunk_size)
+                            if not mp3_data:
+                                break
+                            mp3_queue.put(mp3_data)
+                    except Exception as e:
+                        encoder_error = e
+                        print(f"[STREAMING-TTS] MP3 reader error: {e}")
+                
+                # Start MP3 output reader thread
+                mp3_reader_thread = threading.Thread(target=read_mp3_output)
+                mp3_reader_thread.start()
+                
+                # === TTS GENERATION AND MP3 ENCODING ===
+                pre_inference_time = time.time()
+                pre_processing_duration = (pre_inference_time - start_time) * 1000
+                print(f"[STREAMING-TTS] Pre-processing time: {pre_processing_duration:.2f}ms")
+                
+                inference_start_time = time.time()
+                print(f"[STREAMING-TTS] Starting inference at: {time.strftime('%H:%M:%S.%f')[:-3]}")
+                
+                first_chunk_generated = False
+                first_chunk_sent = False
+                chunk_count = 0
+                
+                # Text normalization
+                text_norm_start = time.time()
+                normalized_text_chunks = global_cosyvoice.frontend.text_normalize(text, split=True, text_frontend=False)
+                text_norm_time = (time.time() - text_norm_start) * 1000
+                print(f"[STREAMING-TTS] Text normalization time: {text_norm_time:.2f}ms, got {len(normalized_text_chunks)} chunks")
+                
+                # Process all text chunks
+                for chunk_idx, text_chunk in enumerate(normalized_text_chunks):
+                    print(f"[STREAMING-TTS] Processing text chunk {chunk_idx + 1}/{len(normalized_text_chunks)}: {text_chunk[:50]}...")
+                    
+                    # Generate audio using CosyVoice streaming
+                    for i, j in enumerate(global_cosyvoice.inference_zero_shot(
+                        text_chunk, 
+                        global_normalized_prompt_text, 
+                        global_prompt_speech_16k, 
+                        zero_shot_spk_id='cached_prompt_spk', 
+                        stream=True
+                    )):
+                        chunk_start_time = time.time()
+                        chunk_count += 1
+                        
+                        # Record first chunk timing
+                        if not first_chunk_generated:
+                            first_chunk_time = (chunk_start_time - inference_start_time) * 1000
+                            first_chunk_since_request = (chunk_start_time - start_time) * 1000
+                            print(f"[STREAMING-TTS] First chunk generated time: {first_chunk_time:.2f}ms")
+                            print(f"[STREAMING-TTS] First chunk since request arrival: {first_chunk_since_request:.2f}ms")
+                            first_chunk_generated = True
+                        
+                        # Convert audio tensor to numpy float32
+                        audio_tensor = j['tts_speech']
+                        audio_np = audio_tensor.numpy().astype(np.float32)
+                        
+                        # Feed audio data to continuous MP3 encoder
+                        try:
+                            encoder_process.stdin.write(audio_np.tobytes())
+                            encoder_process.stdin.flush()
+                        except Exception as e:
+                            print(f"[STREAMING-TTS] Error writing to encoder: {e}")
+                            break
+                        
+                        # Read available MP3 data and send immediately
+                        mp3_chunks_sent = 0
+                        while not mp3_queue.empty():
+                            try:
+                                mp3_chunk = mp3_queue.get_nowait()
+                                if mp3_chunk:
+                                    await websocket.send_bytes(mp3_chunk)
+                                    mp3_chunks_sent += 1
+                                    
+                                    # Track first MP3 chunk sent
+                                    if not first_chunk_sent:
+                                        first_chunk_sent_time = time.time()
+                                        first_mp3_chunk_time = (first_chunk_sent_time - start_time) * 1000
+                                        print(f"[STREAMING-TTS] First MP3 chunk sent: {first_mp3_chunk_time:.2f}ms since request")
+                                        first_chunk_sent = True
+                            except:
+                                break
+                        
+                        chunk_processing_time = (time.time() - chunk_start_time) * 1000
+                        total_time_so_far = (time.time() - start_time) * 1000
+                        
+                        print(f"[STREAMING-TTS] Audio chunk {chunk_count} processed in {chunk_processing_time:.2f}ms, sent {mp3_chunks_sent} MP3 chunks, total time: {total_time_so_far:.2f}ms")
+                        
+                        await asyncio.sleep(0)  # Allow other tasks
+                
+                # Close encoder input to signal end
+                encoder_process.stdin.close()
+                
+                # Send remaining MP3 data
+                final_mp3_chunks = 0
+                while mp3_reader_thread.is_alive() or not mp3_queue.empty():
+                    try:
+                        mp3_chunk = mp3_queue.get(timeout=0.1)
+                        if mp3_chunk:
+                            await websocket.send_bytes(mp3_chunk)
+                            final_mp3_chunks += 1
+                    except:
+                        break
+                
+                # Wait for processes to complete
+                encoder_process.wait()
+                mp3_reader_thread.join(timeout=1.0)
+                
+                total_generation_time = (time.time() - start_time) * 1000
+                print(f"[STREAMING-TTS] MP3 streaming completed in {total_generation_time:.2f}ms, sent {final_mp3_chunks} final chunks")
+                
+                if encoder_error:
+                    print(f"[STREAMING-TTS] Encoder error: {encoder_error}")
+                
+            except Exception as inference_error:
+                print(f"[STREAMING-TTS] Inference error: {str(inference_error)}")
+                print(f"[STREAMING-TTS] Error type: {type(inference_error)}")
+                import traceback
+                print(f"[STREAMING-TTS] Traceback: {traceback.format_exc()}")
+                await websocket.send_text(json.dumps({"error": f"MP3 TTS generation failed: {str(inference_error)}"}))
+                
+                # Clean up encoder process if still running
+                try:
+                    if 'encoder_process' in locals():
+                        encoder_process.terminate()
+                        encoder_process.wait(timeout=1.0)
+                except:
+                    pass
+            
+    except WebSocketDisconnect:
+        print(f"[STREAMING-TTS] WebSocket connection disconnected")
+    except Exception as e:
+        print(f"[STREAMING-TTS] WebSocket error: {str(e)}")
+        try:
+            await websocket.send_text(json.dumps({"error": f"WebSocket error: {str(e)}"}))
+        except:
+            pass
 
 # Initialize model on startup
 @app.on_event("startup")
