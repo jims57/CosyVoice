@@ -335,6 +335,7 @@ async def websocket_streaming_tts(websocket: WebSocket):
             
             # Extract text parameter
             text = request_data.get("text", "")
+            save_mp3_files = request_data.get("saveMp3Files", False)
             
             if not text:
                 await websocket.send_text(json.dumps({"error": "Text is required"}))
@@ -345,6 +346,16 @@ async def websocket_streaming_tts(websocket: WebSocket):
                 continue
             
             print(f"[STREAMING-TTS] Generating MP3 chunks for text: {text[:50]}{'...' if len(text) > 50 else ''}")
+            if save_mp3_files:
+                print(f"[STREAMING-TTS] Will save MP3 chunks to files")
+            
+            # Setup folder for saving MP3 chunks if requested
+            chunk_save_folder = None
+            chunk_file_counter = 0
+            if save_mp3_files:
+                chunk_save_folder = os.path.join(os.path.dirname(__file__), "cosy_mp3_chunks")
+                os.makedirs(chunk_save_folder, exist_ok=True)
+                print(f"[STREAMING-TTS] Created/verified chunk save folder: {chunk_save_folder}")
             
             try:
                 # Setup continuous MP3 encoder
@@ -453,6 +464,18 @@ async def websocket_streaming_tts(websocket: WebSocket):
                                     await websocket.send_bytes(mp3_chunk)
                                     mp3_chunks_sent += 1
                                     
+                                    # Save MP3 chunk to file if requested
+                                    if save_mp3_files and chunk_save_folder:
+                                        chunk_filename = f"chunk_{chunk_file_counter}.mp3"
+                                        chunk_filepath = os.path.join(chunk_save_folder, chunk_filename)
+                                        try:
+                                            with open(chunk_filepath, 'wb') as f:
+                                                f.write(mp3_chunk)
+                                            print(f"[STREAMING-TTS] Saved {chunk_filename} ({len(mp3_chunk)} bytes)")
+                                            chunk_file_counter += 1
+                                        except Exception as save_error:
+                                            print(f"[STREAMING-TTS] Error saving chunk file: {save_error}")
+                                    
                                     # Track first MP3 chunk sent
                                     if not first_chunk_sent:
                                         first_chunk_sent_time = time.time()
@@ -480,6 +503,18 @@ async def websocket_streaming_tts(websocket: WebSocket):
                         if mp3_chunk:
                             await websocket.send_bytes(mp3_chunk)
                             final_mp3_chunks += 1
+                            
+                            # Save final MP3 chunk to file if requested
+                            if save_mp3_files and chunk_save_folder:
+                                chunk_filename = f"chunk_{chunk_file_counter}.mp3"
+                                chunk_filepath = os.path.join(chunk_save_folder, chunk_filename)
+                                try:
+                                    with open(chunk_filepath, 'wb') as f:
+                                        f.write(mp3_chunk)
+                                    print(f"[STREAMING-TTS] Saved final {chunk_filename} ({len(mp3_chunk)} bytes)")
+                                    chunk_file_counter += 1
+                                except Exception as save_error:
+                                    print(f"[STREAMING-TTS] Error saving final chunk file: {save_error}")
                     except:
                         break
                 
@@ -489,6 +524,9 @@ async def websocket_streaming_tts(websocket: WebSocket):
                 
                 total_generation_time = (time.time() - start_time) * 1000
                 print(f"[STREAMING-TTS] MP3 streaming completed in {total_generation_time:.2f}ms, sent {final_mp3_chunks} final chunks")
+                
+                if save_mp3_files:
+                    print(f"[STREAMING-TTS] Saved {chunk_file_counter} MP3 chunk files to {chunk_save_folder}")
                 
                 if encoder_error:
                     print(f"[STREAMING-TTS] Encoder error: {encoder_error}")
