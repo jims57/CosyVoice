@@ -162,6 +162,7 @@ async def websocket_tts(websocket: WebSocket):
             # Extract parameters with defaults
             text = request_data.get("text", "")
             save_audio_files = request_data.get("saveAudioFiles", False)
+            output_sample_rate = request_data.get("outputSampleRate", 22050)  # Default 22050 Hz (CosyVoice native)
             audio_format = "wav"  # Always use WAV for WebSocket
             
             if not text:
@@ -180,10 +181,70 @@ async def websocket_tts(websocket: WebSocket):
                 os.makedirs(chunk_save_folder, exist_ok=True)
                 print(f"[WS-TTS] Created/verified chunk save folder: {chunk_save_folder}")
             
+            # Initialize PCM buffer for accumulating audio data
+            pcm_buffer = bytearray()
+            mp3_chunk_counter = 0
+            
+            # Calculate target PCM bytes per MP3 chunk (approximate)
+            # Assuming 16-bit PCM: 2 bytes per sample
+            segment_duration = 1.0  # 1 second chunks
+            target_pcm_bytes_per_chunk = int(output_sample_rate * 2 * segment_duration)  # 2 bytes per sample
+            
+            print(f"[WS-TTS] CosyVoice native sample rate: {global_cosyvoice.sample_rate} Hz")
+            print(f"[WS-TTS] Output sample rate: {output_sample_rate} Hz")
+            if global_cosyvoice.sample_rate == output_sample_rate:
+                print(f"[WS-TTS] ✓ No resampling needed - rates match (optimal performance)")
+            else:
+                print(f"[WS-TTS] ⚠ Resampling will be applied: {global_cosyvoice.sample_rate} Hz → {output_sample_rate} Hz")
+            print(f"[WS-TTS] Target PCM bytes per MP3 chunk: {target_pcm_bytes_per_chunk}")
+            
             # Generate audio
             print(f"Generating audio for text: {text[:50]}{'...' if len(text) > 50 else ''}")
             if save_audio_files:
-                print(f"[WS-TTS] Will save WAV chunks to files")
+                print(f"[WS-TTS] Will save MP3 chunks to files")
+
+            # Helper function to convert PCM data to MP3 chunk
+            async def convert_pcm_to_mp3_chunk(pcm_data, sample_rate):
+                """Convert PCM data to MP3 chunk using ffmpeg"""
+                try:
+                    # Use ffmpeg to convert PCM to MP3
+                    ffmpeg_cmd = [
+                        'ffmpeg',
+                        '-y',  # Overwrite output files
+                        '-f', 's16le',  # Input format: 16-bit little-endian PCM
+                        '-ar', str(sample_rate),  # Input sample rate
+                        '-ac', '1',  # Mono
+                        '-i', 'pipe:0',  # Read from stdin
+                        '-c:a', 'libmp3lame',  # MP3 encoder
+                        '-b:a', '320k',  # 320 kbps
+                        '-ar', str(output_sample_rate),  # Output sample rate
+                        '-ac', '1',  # Mono output
+                        '-write_id3v1', '0',  # No ID3v1
+                        '-write_id3v2', '0',  # No ID3v2
+                        '-id3v2_version', '0',  # No ID3v2
+                        '-write_xing', '0',  # No Xing header
+                        '-fflags', '+bitexact',
+                        '-f', 'mp3',  # MP3 format
+                        'pipe:1'  # Output to stdout
+                    ]
+                    
+                    process = subprocess.Popen(
+                        ffmpeg_cmd,
+                        stdin=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE
+                    )
+                    
+                    mp3_data, error = process.communicate(input=pcm_data)
+                    
+                    if process.returncode != 0:
+                        print(f"[WS-TTS] FFmpeg error: {error.decode()}")
+                        return None
+                    
+                    return mp3_data
+                except Exception as e:
+                    print(f"[WS-TTS] Error converting PCM to MP3: {e}")
+                    return None
 
             before_inference_time = time.time()
             elapsed_since_start = (before_inference_time - start_time) * 1000
@@ -238,49 +299,123 @@ async def websocket_tts(websocket: WebSocket):
                             print(f"[WS-TTS] ⚡ Zero-shot inference time: {zeroshot_time:.2f}ms")
                             first_chunk_generated = True
                         
-                        # === AUDIO CONVERSION TIMING ===
+                        # === AUDIO TO PCM CONVERSION ===
                         audio_convert_start = time.time()
                         
-                        # Convert audio tensor to WAV format for WebSocket streaming
-                        buffer = io.BytesIO()
-                        torchaudio.save(buffer, j['tts_speech'], global_cosyvoice.sample_rate, format="wav")
-                        wav_bytes = buffer.getvalue()
-                        buffer.close()
+                        # Convert audio tensor to PCM data (16-bit signed integers)
+                        audio_tensor = j['tts_speech']
                         
-                        # Save WAV chunk to file if requested
-                        if save_audio_files and chunk_save_folder:
-                            chunk_filename = f"chunk_{chunk_file_counter}.wav"
-                            chunk_filepath = os.path.join(chunk_save_folder, chunk_filename)
-                            try:
-                                with open(chunk_filepath, 'wb') as f:
-                                    f.write(wav_bytes)
-                                print(f"[WS-TTS] Saved {chunk_filename} ({len(wav_bytes)} bytes)")
-                                chunk_file_counter += 1
-                            except Exception as save_error:
-                                print(f"[WS-TTS] Error saving chunk file: {save_error}")
+                        # Resample to target output sample rate if needed
+                        if global_cosyvoice.sample_rate != output_sample_rate:
+                            resample_start = time.time()
+                            audio_tensor = torchaudio.functional.resample(
+                                audio_tensor, 
+                                global_cosyvoice.sample_rate, 
+                                output_sample_rate
+                            )
+                            resample_time = (time.time() - resample_start) * 1000
+                            print(f"[WS-TTS] 🔄 Resampled chunk {chunk_count}: {resample_time:.2f}ms ({global_cosyvoice.sample_rate} → {output_sample_rate} Hz)")
+                        else:
+                            print(f"[WS-TTS] ✓ Chunk {chunk_count}: No resampling needed (optimal)")
+                        
+                        # Convert to 16-bit PCM
+                        audio_np = audio_tensor.numpy()
+                        # Normalize to [-1, 1] range if needed
+                        if audio_np.max() > 1.0 or audio_np.min() < -1.0:
+                            audio_np = audio_np / max(abs(audio_np.max()), abs(audio_np.min()))
+                        # Convert to 16-bit PCM
+                        pcm_data = (audio_np * 32767).astype(np.int16).tobytes()
+                        
+                        # Add PCM data to buffer
+                        pcm_buffer.extend(pcm_data)
                         
                         audio_convert_time = (time.time() - audio_convert_start) * 1000
+                        print(f"[WS-TTS] 🎵 Audio to PCM conversion time: {audio_convert_time:.2f}ms, PCM buffer size: {len(pcm_buffer)} bytes")
+                        
+                        # === PROCESS PCM BUFFER INTO MP3 CHUNKS ===
+                        while len(pcm_buffer) >= target_pcm_bytes_per_chunk:
+                            mp3_convert_start = time.time()
+                            
+                            # Extract PCM chunk from buffer
+                            pcm_chunk = bytes(pcm_buffer[:target_pcm_bytes_per_chunk])
+                            pcm_buffer = pcm_buffer[target_pcm_bytes_per_chunk:]
+                            
+                            # Convert PCM chunk to MP3
+                            mp3_data = await convert_pcm_to_mp3_chunk(pcm_chunk, output_sample_rate)
+                            
+                            if mp3_data:
+                                # Send MP3 chunk immediately
+                                send_start = time.time()
+                                await websocket.send_bytes(mp3_data)
+                                send_time = (time.time() - send_start) * 1000
+                                
+                                mp3_convert_time = (time.time() - mp3_convert_start) * 1000
+                                
+                                print(f"[WS-TTS] 📦 MP3 chunk {mp3_chunk_counter} sent: {len(mp3_data)} bytes, convert time: {mp3_convert_time:.2f}ms, send time: {send_time:.2f}ms")
+                                
+                                # Save MP3 chunk to file if requested
+                                if save_audio_files and chunk_save_folder:
+                                    chunk_filename = f"chunk_{mp3_chunk_counter}.mp3"
+                                    chunk_filepath = os.path.join(chunk_save_folder, chunk_filename)
+                                    try:
+                                        with open(chunk_filepath, 'wb') as f:
+                                            f.write(mp3_data)
+                                        print(f"[WS-TTS] Saved {chunk_filename} ({len(mp3_data)} bytes)")
+                                    except Exception as save_error:
+                                        print(f"[WS-TTS] Error saving chunk file: {save_error}")
+                                
+                                mp3_chunk_counter += 1
+                                
+                                # Track first chunk sent timing
+                                if not first_chunk_sent:
+                                    first_chunk_sent_time = time.time()
+                                    elapsed_since_start = (first_chunk_sent_time - start_time) * 1000
+                                    elapsed_since_before = (first_chunk_sent_time - before_inference_time) * 1000
+                                    print(f"[WS-TTS] 🎯 Time to send first MP3 chunk: {elapsed_since_start:.2f} ms since start, {elapsed_since_before:.2f} ms since before inference")
+                                    first_chunk_sent = True
+                                
+                                await asyncio.sleep(0)  # Allow other tasks
+                            else:
+                                print(f"[WS-TTS] Failed to convert PCM chunk to MP3")
+                        
                         chunk_processing_time = (time.time() - chunk_start_time) * 1000
                         total_time_so_far = (time.time() - start_time) * 1000
                         
-                        print(f"[WS-TTS] 🎵 Audio conversion time: {audio_convert_time:.2f}ms")
-                        print(f"[WS-TTS] 📦 Chunk {chunk_count} (text chunk {chunk_idx + 1}) processed in {chunk_processing_time:.2f}ms, total time: {total_time_so_far:.2f}ms")
+                        print(f"[WS-TTS] 📊 Audio chunk {chunk_count} (text chunk {chunk_idx + 1}) processed in {chunk_processing_time:.2f}ms, total time: {total_time_so_far:.2f}ms")
+                
+                # === PROCESS REMAINING PCM DATA ===
+                if len(pcm_buffer) > 0:
+                    print(f"[WS-TTS] 🔄 Processing remaining PCM data: {len(pcm_buffer)} bytes")
+                    remaining_start = time.time()
+                    
+                    # Convert remaining PCM data to MP3
+                    remaining_pcm_data = bytes(pcm_buffer)
+                    mp3_data = await convert_pcm_to_mp3_chunk(remaining_pcm_data, output_sample_rate)
+                    
+                    if mp3_data:
+                        # Send final MP3 chunk
+                        await websocket.send_bytes(mp3_data)
                         
-                        # === WEBSOCKET SEND TIMING ===
-                        send_start = time.time()
-                        await websocket.send_bytes(wav_bytes)
-                        await asyncio.sleep(0)
-                        send_time = (time.time() - send_start) * 1000
+                        remaining_time = (time.time() - remaining_start) * 1000
+                        print(f"[WS-TTS] 📦 Final MP3 chunk {mp3_chunk_counter} sent: {len(mp3_data)} bytes, process time: {remaining_time:.2f}ms")
                         
-                        print(f"[WS-TTS] 📡 WebSocket send time: {send_time:.2f}ms")
+                        # Save final MP3 chunk to file if requested
+                        if save_audio_files and chunk_save_folder:
+                            chunk_filename = f"chunk_{mp3_chunk_counter}.mp3"
+                            chunk_filepath = os.path.join(chunk_save_folder, chunk_filename)
+                            try:
+                                with open(chunk_filepath, 'wb') as f:
+                                    f.write(mp3_data)
+                                print(f"[WS-TTS] Saved final {chunk_filename} ({len(mp3_data)} bytes)")
+                            except Exception as save_error:
+                                print(f"[WS-TTS] Error saving final chunk file: {save_error}")
                         
-                        # Track first chunk sent timing
-                        if not first_chunk_sent:
-                            first_chunk_sent_time = time.time()
-                            elapsed_since_start = (first_chunk_sent_time - start_time) * 1000
-                            elapsed_since_before = (first_chunk_sent_time - before_inference_time) * 1000
-                            print(f"[WS-TTS] 🎯 Time to send first chunk: {elapsed_since_start:.2f} ms since start, {elapsed_since_before:.2f} ms since before inference")
-                            first_chunk_sent = True
+                        mp3_chunk_counter += 1
+                    else:
+                        print(f"[WS-TTS] Failed to convert remaining PCM data to MP3")
+                    
+                    # Clear buffer
+                    pcm_buffer.clear()
                 
                 # Log completion timing
                 after_inference_time = time.time()
@@ -290,9 +425,10 @@ async def websocket_tts(websocket: WebSocket):
                 
                 generation_time = time.time() - start_time
                 print(f"[WS-TTS] 🏁 Audio generated in {generation_time:.2f} seconds")
+                print(f"[WS-TTS] 📊 Total MP3 chunks sent: {mp3_chunk_counter}")
                 
                 if save_audio_files:
-                    print(f"[WS-TTS] Saved {chunk_file_counter} WAV chunk files to {chunk_save_folder}")
+                    print(f"[WS-TTS] Saved {mp3_chunk_counter} MP3 chunk files to {chunk_save_folder}")
                 
             except Exception as inference_error:
                 print(f"Inference error: {str(inference_error)}")
