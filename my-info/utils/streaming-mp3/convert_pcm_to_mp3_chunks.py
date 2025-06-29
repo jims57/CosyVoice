@@ -39,6 +39,7 @@ Output:
 import os
 import subprocess
 import tempfile
+import argparse
 
 def segment_pcm_and_convert_to_mp3(pcm_file_path, output_dir, segment_duration=1.0, input_sample_rate=16000, output_sample_rate=48000, channels=1, bit_depth=16):
     """
@@ -190,15 +191,77 @@ def segment_pcm_and_convert_to_mp3(pcm_file_path, output_dir, segment_duration=1
         print(f"Error processing file: {e}")
 
 def main():
+    # Set up command line argument parsing
+    parser = argparse.ArgumentParser(
+        description="Convert PCM to MP3 Chunks",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Basic usage with default settings
+  python convert_pcm_to_mp3_chunks.py
+  
+  # Use specific PCM file and chunk duration
+  python convert_pcm_to_mp3_chunks.py --pcm-file pcm/a_man_die.pcm --segment-duration 1.0
+  
+  # Custom output directory
+  python convert_pcm_to_mp3_chunks.py --pcm-file pcm/a_man_die.pcm --output-dir my_chunks
+        """
+    )
+    
+    parser.add_argument('--pcm-file', 
+                       default=None,
+                       help='Path to input PCM file (default: pcm/mayun_zh.pcm)')
+    
+    parser.add_argument('--output-dir', 
+                       default='mp3_chunks',
+                       help='Output directory for MP3 chunks (default: mp3_chunks)')
+    
+    parser.add_argument('--segment-duration', 
+                       type=float, 
+                       default=1.0,
+                       help='Duration of each segment in seconds (default: 1.0)')
+    
+    parser.add_argument('--input-sample-rate', 
+                       type=int, 
+                       default=16000,
+                       help='Input PCM sample rate in Hz (default: 16000)')
+    
+    parser.add_argument('--output-sample-rate', 
+                       type=int, 
+                       default=48000,
+                       help='Output MP3 sample rate in Hz (default: 16000)')
+    
+    parser.add_argument('--channels', 
+                       type=int, 
+                       default=1,
+                       help='Number of channels (default: 1)')
+    
+    parser.add_argument('--bit-depth', 
+                       type=int, 
+                       default=16,
+                       help='Bit depth (default: 16)')
+    
+    args = parser.parse_args()
+    
     # Get the directory of this script
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Define input and output paths
-    pcm_dir = os.path.join(script_dir, 'pcm')
-    mp3_dir = os.path.join(script_dir, 'mp3_chunks')
+    # Determine input file path
+    if args.pcm_file:
+        # Use the specified file (can be relative or absolute path)
+        if os.path.isabs(args.pcm_file):
+            pcm_file = args.pcm_file
+        else:
+            pcm_file = os.path.join(script_dir, args.pcm_file)
+    else:
+        # Use default file
+        pcm_file = os.path.join(script_dir, 'pcm', 'mayun_zh.pcm')
     
-    # Define file path
-    pcm_file = os.path.join(pcm_dir, 'mayun_zh.pcm')
+    # Determine output directory path
+    if os.path.isabs(args.output_dir):
+        mp3_dir = args.output_dir
+    else:
+        mp3_dir = os.path.join(script_dir, args.output_dir)
     
     # Check if input file exists
     if not os.path.exists(pcm_file):
@@ -213,15 +276,19 @@ def main():
         print("Please install ffmpeg: https://ffmpeg.org/download.html")
         return
     
-    # Convert with resampling: 16kHz PCM input → 48kHz MP3 output
+    print(f"Input file: {pcm_file}")
+    print(f"Output directory: {mp3_dir}")
+    print("")
+    
+    # Convert with specified parameters
     segment_pcm_and_convert_to_mp3(
         pcm_file_path=pcm_file,
         output_dir=mp3_dir,
-        segment_duration=1.0,      # 1 second per segment
-        input_sample_rate=16000,   # Input PCM: 16kHz mono
-        output_sample_rate=48000,  # Output MP3: 48kHz mono (for FFF3E4C4)
-        channels=1,                # mono
-        bit_depth=16               # 16-bit
+        segment_duration=args.segment_duration,
+        input_sample_rate=args.input_sample_rate,
+        output_sample_rate=args.output_sample_rate,
+        channels=args.channels,
+        bit_depth=args.bit_depth
     )
 
 if __name__ == "__main__":
