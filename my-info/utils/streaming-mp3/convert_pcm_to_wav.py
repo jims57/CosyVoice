@@ -125,12 +125,16 @@ def main():
     os.makedirs(wav_dir, exist_ok=True)
     
     # Define file paths【Jack ma】
-    pcm_file = os.path.join(pcm_dir, 'mayun_zh.pcm')
-    wav_file = os.path.join(wav_dir, 'mayun_zh_converted_from_pcm.wav')
+    # pcm_file = os.path.join(pcm_dir, 'mayun_zh.pcm')
+    # wav_file = os.path.join(wav_dir, 'mayun_zh_converted_from_pcm.wav')
 
     # Define file paths【CosyVoice】
     # pcm_file = os.path.join(pcm_dir, 'cosy_combined_wavs.pcm')
     # wav_file = os.path.join(wav_dir, 'cosyvoice_converted_from_pcm.wav')
+
+    # Define file paths【CosyVoice pcm chunks】
+    pcm_file = os.path.join(pcm_dir, 'pcm_chunks_combined.pcm')
+    wav_file = os.path.join(wav_dir, 'pcm_chunks_combined.wav')
     
     # Check if input file exists
     if not os.path.exists(pcm_file):
@@ -138,7 +142,7 @@ def main():
         return
     
     # Convert the file with specified parameters: 16kHz, mono, 16-bit
-    convert_pcm_to_wav(pcm_file, wav_file, sample_rate=16000, channels=1, sample_width=2)
+    convert_pcm_to_wav(pcm_file, wav_file, sample_rate=24000, channels=1, sample_width=2)
 
 if __name__ == "__main__":
     main()
