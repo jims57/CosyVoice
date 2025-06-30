@@ -867,6 +867,9 @@ async def startup_event():
     # Initialize CosyVoice2 with vllm enabled
     global_cosyvoice = CosyVoice2('pretrained_models/CosyVoice2-0.5B', load_jit=True, load_trt=True, load_vllm=True, fp16=True)
     
+    # Add this debug line to check the actual sample rate
+    print(f"🔍 DEBUG: CosyVoice2-0.5B reported sample rate: {global_cosyvoice.sample_rate} Hz")
+    
     # Load prompt speech
     global_prompt_speech_16k = load_wav('./asset/man-short.wav', 16000)
     global_prompt_text = "Did you guys see the video of that dude who was at the gym who took his earbuds and just smacked them against the wall because they would not stay in his ear during his set? "

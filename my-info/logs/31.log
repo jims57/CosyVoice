@@ -1,0 +1,51 @@
+2025-06-30 22:38:25,905 INFO synthesis text 春天的花朵在微风中轻轻摇摆，带来了生机勃勃的气息。
+WARNING 06-30 22:38:25 [preprocess.py:63] Using None for EOS token id because tokenizer is not initialized
+INFO 06-30 22:38:25 [metrics.py:486] Avg prompt throughput: 3.3 tokens/s, Avg generation throughput: 2.1 tokens/s, Running: 1 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.0%, CPU KV cache usage: 0.0%.
+2025-06-30 22:38:26,310 INFO yield speech len 1.8, rtf 0.22523774041069877
+[WS-TTS] ⚡ First chunk generated time: 471.22ms
+[WS-TTS] ⚡ First chunk since request arrival: 471.42ms
+[WS-TTS] ⚡ Zero-shot inference time: 471.17ms
+[WS-TTS] 🔄 Resampled chunk 1: 1.55ms (24000 → 16000 Hz)
+[WS-TTS] 🎵 Audio to PCM conversion time: 1.65ms, PCM buffer size: 57600 bytes
+[WS-TTS] 📦 PCM chunk 0 sent: 32000 bytes, send time: 0.09ms
+[WS-TTS] Saved chunk_0.pcm (32000 bytes)
+[WS-TTS] 🎯 Time to send first PCM chunk: 473.59 ms since start, 473.41 ms since before inference
+[WS-TTS] 📊 Audio chunk 1 (text chunk 1) processed in 2.37ms, total time: 473.79ms
+2025-06-30 22:38:26,552 INFO yield speech len 1.0, rtf 0.23927712440490723
+[WS-TTS] 🔄 Resampled chunk 2: 1.48ms (24000 → 16000 Hz)
+[WS-TTS] 🎵 Audio to PCM conversion time: 1.57ms, PCM buffer size: 57600 bytes
+[WS-TTS] 📦 PCM chunk 1 sent: 32000 bytes, send time: 0.08ms
+[WS-TTS] Saved chunk_1.pcm (32000 bytes)
+[WS-TTS] 📊 Audio chunk 2 (text chunk 1) processed in 1.95ms, total time: 715.15ms
+2025-06-30 22:38:26,736 INFO yield speech len 1.0, rtf 0.18161368370056152
+[WS-TTS] 🔄 Resampled chunk 3: 0.52ms (24000 → 16000 Hz)
+[WS-TTS] 🎵 Audio to PCM conversion time: 0.60ms, PCM buffer size: 57600 bytes
+[WS-TTS] 📦 PCM chunk 2 sent: 32000 bytes, send time: 0.08ms
+[WS-TTS] Saved chunk_2.pcm (32000 bytes)
+[WS-TTS] 📊 Audio chunk 3 (text chunk 1) processed in 0.99ms, total time: 897.87ms
+2025-06-30 22:38:26,922 INFO yield speech len 1.0, rtf 0.18502283096313477
+[WS-TTS] 🔄 Resampled chunk 4: 0.53ms (24000 → 16000 Hz)
+[WS-TTS] 🎵 Audio to PCM conversion time: 0.61ms, PCM buffer size: 57600 bytes
+[WS-TTS] 📦 PCM chunk 3 sent: 32000 bytes, send time: 0.07ms
+[WS-TTS] Saved chunk_3.pcm (32000 bytes)
+[WS-TTS] 📊 Audio chunk 4 (text chunk 1) processed in 0.99ms, total time: 1083.98ms
+2025-06-30 22:38:27,111 INFO yield speech len 1.0, rtf 0.18744587898254395
+[WS-TTS] 🔄 Resampled chunk 5: 0.51ms (24000 → 16000 Hz)
+[WS-TTS] 🎵 Audio to PCM conversion time: 0.59ms, PCM buffer size: 57600 bytes
+[WS-TTS] 📦 PCM chunk 4 sent: 32000 bytes, send time: 0.07ms
+[WS-TTS] Saved chunk_4.pcm (32000 bytes)
+[WS-TTS] 📊 Audio chunk 5 (text chunk 1) processed in 0.92ms, total time: 1272.46ms
+2025-06-30 22:38:27,229 INFO yield speech len 0.6, rtf 0.19594430923461914
+[rank0]:[W630 22:38:27.915419200 NNPACK.cpp:57] Could not initialize NNPACK! Reason: Unsupported hardware.
+[WS-TTS] 🔄 Resampled chunk 6: 35.33ms (24000 → 16000 Hz)
+[WS-TTS] 🎵 Audio to PCM conversion time: 35.47ms, PCM buffer size: 44800 bytes
+[WS-TTS] 📦 PCM chunk 5 sent: 32000 bytes, send time: 0.11ms
+[WS-TTS] Saved chunk_5.pcm (32000 bytes)
+[WS-TTS] 📊 Audio chunk 6 (text chunk 1) processed in 35.94ms, total time: 1426.08ms
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:01<00:00,  1.37s/it]
+[WS-TTS] 🔄 Processing remaining PCM data: 12800 bytes
+[WS-TTS] 📦 Final PCM chunk 6 sent: 12800 bytes, process time: 0.05ms
+[WS-TTS] Saved final chunk_6.pcm (12800 bytes)
+[WS-TTS] ✅ Time after inference: 1428.32 ms since start, 1428.14 ms since before inference
+[WS-TTS] 🏁 Audio generated in 1.43 seconds
+[WS-TTS] 📊 Total PCM chunks sent: 7
