@@ -205,7 +205,7 @@ async def websocket_tts(websocket: WebSocket):
 
             # Helper function to convert PCM data to MP3 chunk
             async def convert_pcm_to_mp3_chunk(pcm_data, sample_rate):
-                """Convert PCM data to MP3 chunk using ffmpeg"""
+                """Convert PCM data to MP3 chunk using ffmpeg and trim padding"""
                 try:
                     # Use ffmpeg to convert PCM to MP3
                     ffmpeg_cmd = [
@@ -241,10 +241,71 @@ async def websocket_tts(websocket: WebSocket):
                         print(f"[WS-TTS] FFmpeg error: {error.decode()}")
                         return None
                     
-                    return mp3_data
+                    # Trim padding from the end of MP3 chunk
+                    trimmed_mp3_data = trim_mp3_padding(mp3_data)
+                    
+                    return trimmed_mp3_data
                 except Exception as e:
                     print(f"[WS-TTS] Error converting PCM to MP3: {e}")
                     return None
+
+            def trim_mp3_padding(mp3_data):
+                """Remove padding bytes from the end of MP3 chunk to ensure clean frame boundaries"""
+                if len(mp3_data) < 4:
+                    return mp3_data
+                
+                # Convert to bytearray for easier manipulation
+                data = bytearray(mp3_data)
+                original_length = len(data)
+                
+                # Look for repetitive padding patterns at the end
+                # Common MP3 padding patterns: 0x55, 0xAA, 0x00, etc.
+                padding_patterns = [0x55, 0xAA, 0x00]
+                
+                # Find the last non-padding byte
+                end_pos = len(data)
+                
+                for pattern in padding_patterns:
+                    # Check if we have repetitive padding pattern at the end
+                    consecutive_count = 0
+                    pos = len(data) - 1
+                    
+                    # Count consecutive padding bytes from the end
+                    while pos >= 0 and data[pos] == pattern:
+                        consecutive_count += 1
+                        pos -= 1
+                    
+                    # If we found significant padding (more than 16 consecutive bytes)
+                    if consecutive_count > 16:
+                        potential_end = pos + 1
+                        if potential_end < end_pos:
+                            end_pos = potential_end
+                            print(f"[WS-TTS] Detected {consecutive_count} bytes of 0x{pattern:02X} padding, trimming to position {end_pos}")
+                
+                # Additional check: look for MP3 frame sync patterns to avoid cutting in the middle of frames
+                # MP3 frame sync is 0xFFF (first 11 bits), so we look for 0xFF followed by 0xF*
+                if end_pos < original_length:
+                    # Try to align to the last valid MP3 frame boundary
+                    for i in range(end_pos - 1, max(0, end_pos - 100), -1):  # Look back up to 100 bytes
+                        if i + 1 < len(data) and data[i] == 0xFF and (data[i + 1] & 0xF0) == 0xF0:
+                            # Found potential MP3 frame sync, this might be a better cut point
+                            # Look for the end of this frame
+                            frame_start = i
+                            # MP3 frame header is 4 bytes, try to find frame length
+                            if frame_start + 4 <= len(data):
+                                # For now, just cut here as it's a frame boundary
+                                end_pos = min(end_pos, frame_start + 4)
+                                print(f"[WS-TTS] Aligned to MP3 frame boundary at position {end_pos}")
+                                break
+                
+                # Trim the data
+                trimmed_data = bytes(data[:end_pos])
+                
+                if end_pos < original_length:
+                    bytes_removed = original_length - end_pos
+                    print(f"[WS-TTS] Trimmed {bytes_removed} padding bytes from MP3 chunk ({original_length} -> {end_pos} bytes)")
+                
+                return trimmed_data
 
             before_inference_time = time.time()
             elapsed_since_start = (before_inference_time - start_time) * 1000
