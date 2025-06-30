@@ -141,36 +141,6 @@ def generate_audio_chunks(text, request_start_time, audio_format):
 async def root():
     return {"message": "CosyVoice API is running"}
 
-def remove_leading_silence(audio_np, output_sample_rate, threshold=0.008, min_consecutive_samples_ratio=0.01, padding_ms=50):
-    """Remove leading silence from audio numpy array"""
-    try:
-        # Calculate minimum consecutive samples based on sample rate (default 10ms)
-        min_consecutive_samples = int(output_sample_rate * min_consecutive_samples_ratio)
-        # Calculate padding samples to preserve speech onset
-        padding_samples = int(output_sample_rate * padding_ms / 1000.0)
-        
-        # Calculate absolute values to find non-silent regions
-        abs_audio = np.abs(audio_np.flatten())
-        
-        # Find samples above threshold
-        above_threshold = abs_audio > threshold
-        
-        # Find first position where we have consecutive samples above threshold
-        for i in range(len(above_threshold) - min_consecutive_samples):
-            if np.all(above_threshold[i:i + min_consecutive_samples]):
-                # Apply padding before the detected speech start
-                speech_start = max(0, i - padding_samples)
-                print(f"[WS-TTS] 🔇 Found meaningful audio at sample {i} ({i/output_sample_rate*1000:.1f}ms), with {padding_ms}ms padding starting at sample {speech_start} ({speech_start/output_sample_rate*1000:.1f}ms)")
-                return audio_np[:, speech_start:] if len(audio_np.shape) > 1 else audio_np[speech_start:]
-        
-        # If no meaningful audio found, return original (fallback)
-        print(f"[WS-TTS] ⚠️ No meaningful audio detected, keeping original")
-        return audio_np
-        
-    except Exception as e:
-        print(f"[WS-TTS] Error removing leading silence: {e}")
-        return audio_np
-
 @app.websocket("/ws-tts")
 async def websocket_tts(websocket: WebSocket):
     """
@@ -178,9 +148,6 @@ async def websocket_tts(websocket: WebSocket):
     """
     await websocket.accept()
     print(f"[WS-TTS] WebSocket connection established")
-    
-    # Configurable parameters
-    PREWARM_SILENCE_DURATION_MS = 100  # Duration of silence chunk for AudioTrack pre-warming (ms)
     
     try:
         while True:
@@ -230,7 +197,6 @@ async def websocket_tts(websocket: WebSocket):
             else:
                 print(f"[WS-TTS] ⚠ Resampling will be applied: {global_cosyvoice.sample_rate} Hz → {output_sample_rate} Hz")
             print(f"[WS-TTS] Target PCM bytes per MP3 chunk: {target_pcm_bytes_per_chunk}")
-            print(f"[WS-TTS] Pre-warm silence duration: {PREWARM_SILENCE_DURATION_MS}ms")
             
             # Generate audio
             print(f"Generating audio for text: {text[:50]}{'...' if len(text) > 50 else ''}")
@@ -280,47 +246,6 @@ async def websocket_tts(websocket: WebSocket):
                     print(f"[WS-TTS] Error converting PCM to MP3: {e}")
                     return None
 
-            # === SEND SILENCE CHUNK FOR AUDIOTRACK PRE-WARMING ===
-            prewarm_start = time.time()
-            try:
-                # Calculate silence duration in samples
-                silence_duration_seconds = PREWARM_SILENCE_DURATION_MS / 1000.0
-                silence_samples = int(output_sample_rate * silence_duration_seconds)
-                
-                # Generate silence PCM data (16-bit, mono)
-                silence_pcm = np.zeros(silence_samples, dtype=np.int16).tobytes()
-                
-                print(f"[WS-TTS] 🔇 Generating {PREWARM_SILENCE_DURATION_MS}ms silence chunk ({len(silence_pcm)} bytes) for AudioTrack pre-warming...")
-                
-                # Convert silence PCM to MP3
-                silence_mp3 = await convert_pcm_to_mp3_chunk(silence_pcm, output_sample_rate)
-                
-                if silence_mp3:
-                    # Send silence MP3 chunk immediately
-                    await websocket.send_bytes(silence_mp3)
-                    
-                    prewarm_time = (time.time() - prewarm_start) * 1000
-                    print(f"[WS-TTS] 🔇 Silence chunk sent: {len(silence_mp3)} bytes, generation time: {prewarm_time:.2f}ms")
-                    
-                    # Save silence chunk to file if requested
-                    if save_audio_files and chunk_save_folder:
-                        silence_filename = f"chunk_{mp3_chunk_counter}.mp3"
-                        silence_filepath = os.path.join(chunk_save_folder, silence_filename)
-                        try:
-                            with open(silence_filepath, 'wb') as f:
-                                f.write(silence_mp3)
-                            print(f"[WS-TTS] Saved {silence_filename} ({len(silence_mp3)} bytes)")
-                        except Exception as save_error:
-                            print(f"[WS-TTS] Error saving silence chunk file: {save_error}")
-                    
-                    # Increment counter so CosyVoice chunks start from chunk_1.mp3
-                    mp3_chunk_counter += 1
-                else:
-                    print(f"[WS-TTS] Failed to generate silence MP3 chunk")
-                    
-            except Exception as silence_error:
-                print(f"[WS-TTS] Error generating silence chunk: {silence_error}")
-
             before_inference_time = time.time()
             elapsed_since_start = (before_inference_time - start_time) * 1000
             print(f"Time before inference: {elapsed_since_start:.2f} ms since start")
@@ -338,7 +263,6 @@ async def websocket_tts(websocket: WebSocket):
                 
                 first_chunk_generated = False
                 first_chunk_sent = False
-                first_real_audio_chunk = True  # Track first real audio chunk for silence removal
                 chunk_count = 0
                 
                 # === TEXT NORMALIZATION TIMING ===
@@ -381,17 +305,6 @@ async def websocket_tts(websocket: WebSocket):
                         # Convert audio tensor to PCM data (16-bit signed integers)
                         audio_tensor = j['tts_speech']
                         
-                        # Apply silence removal to the first real CosyVoice chunk BEFORE any processing
-                        if first_real_audio_chunk:
-                            print(f"[WS-TTS] 🎯 Applying silence removal to first real audio chunk")
-                            silence_removal_start = time.time()
-                            audio_np = audio_tensor.squeeze().cpu().numpy()
-                            audio_np = remove_leading_silence(audio_np, global_cosyvoice.sample_rate)
-                            audio_tensor = torch.tensor(audio_np).unsqueeze(0)
-                            silence_removal_time = (time.time() - silence_removal_start) * 1000
-                            print(f"[WS-TTS] ✂️ Silence removal applied in {silence_removal_time:.2f}ms")
-                            first_real_audio_chunk = False
-                        
                         # Resample to target output sample rate if needed
                         if global_cosyvoice.sample_rate != output_sample_rate:
                             resample_start = time.time()
@@ -401,24 +314,17 @@ async def websocket_tts(websocket: WebSocket):
                                 output_sample_rate
                             )
                             resample_time = (time.time() - resample_start) * 1000
-                            print(f"[WS-TTS] 🔄 Resampling applied: {global_cosyvoice.sample_rate} Hz → {output_sample_rate} Hz in {resample_time:.2f}ms")
+                            print(f"[WS-TTS] 🔄 Resampled chunk {chunk_count}: {resample_time:.2f}ms ({global_cosyvoice.sample_rate} → {output_sample_rate} Hz)")
                         else:
-                            print(f"[WS-TTS] ✓ No resampling needed - rates match")
+                            print(f"[WS-TTS] ✓ Chunk {chunk_count}: No resampling needed (optimal)")
                         
-                        # Convert to numpy for processing
+                        # Convert to 16-bit PCM
                         audio_np = audio_tensor.numpy()
-                        
                         # Normalize to [-1, 1] range if needed
                         if audio_np.max() > 1.0 or audio_np.min() < -1.0:
                             audio_np = audio_np / max(abs(audio_np.max()), abs(audio_np.min()))
-                        
-                        # Convert to 16-bit PCM with proper frame alignment
+                        # Convert to 16-bit PCM
                         pcm_data = (audio_np * 32767).astype(np.int16).tobytes()
-                        
-                        # Ensure frame alignment (16-bit samples = 2 bytes per sample)
-                        if len(pcm_data) % 2 != 0:
-                            pcm_data = pcm_data[:-1]  # Remove last byte to maintain alignment
-                            print(f"[WS-TTS] ⚠️ Adjusted PCM data for frame alignment")
                         
                         # Add PCM data to buffer
                         pcm_buffer.extend(pcm_data)
