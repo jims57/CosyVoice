@@ -55,7 +55,7 @@ async def test_websocket():
     headers = {
         "x-api-key": "sk-5z6y7x8w9v0u1t2s3r4q5p6o7n8m9l0k1j2i3h4g"
     }
-    async with websockets.connect(uri, extra_headers=headers) as websocket:
+    async with websockets.connect(uri, additional_headers=headers) as websocket:
         print(f"WebSocket connection established")
         
         # Process multiple requests through the same connection
