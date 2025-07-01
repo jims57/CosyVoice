@@ -55,6 +55,68 @@ def get_device():
     else:
         return 'cpu'
 
+def remove_silence_from_first_pcm_chunk(pcm_data, sample_rate):
+    """Remove silence from the first PCM chunk to improve response time"""
+    try:
+        # Convert PCM bytes to AudioSegment (same logic as remove_silence_from_pcm_and_save_to_a_single_wav.py)
+        from pydub import AudioSegment
+        from pydub.silence import detect_nonsilent
+        
+        # Create a temporary file-like object
+        import io
+        pcm_io = io.BytesIO(pcm_data)
+        
+        # Load PCM data as AudioSegment (same parameters as working script)
+        audio = AudioSegment.from_raw(
+            pcm_io,
+            sample_width=2,     # 16-bit = 2 bytes
+            frame_rate=sample_rate,
+            channels=1          # mono
+        )
+        
+        # Use the same successful parameters from remove_silence_from_pcm_and_save_to_a_single_wav.py
+        min_silence_len = 200    # Minimum silence length in ms
+        silence_thresh = -50     # Silence threshold in dBFS
+        keep_silence = 100       # Amount of silence to keep around segments in ms
+        
+        print(f"[WS-TTS] Detecting non-silent segments in first chunk...")
+        print(f"[WS-TTS] Parameters: min_silence_len={min_silence_len}ms, silence_thresh={silence_thresh}dBFS")
+        
+        # Detect non-silent segments
+        nonsilent_segments = detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh)
+        
+        if not nonsilent_segments:
+            print("[WS-TTS] No voice segments detected in first chunk, keeping original")
+            return pcm_data
+        
+        print(f"[WS-TTS] Found {len(nonsilent_segments)} voice segments in first chunk")
+        
+        # Take the first voice segment (which should be the human voice)
+        start, end = nonsilent_segments[0]
+        
+        # Add some silence padding if specified
+        segment_start = max(0, start - keep_silence)
+        segment_end = min(len(audio), end + keep_silence)
+        
+        # Extract the first voice segment
+        trimmed_audio = audio[segment_start:segment_end]
+        
+        print(f"[WS-TTS] First voice segment: {start}ms to {end}ms (with padding: {segment_start}ms to {segment_end}ms)")
+        print(f"[WS-TTS] Original duration: {len(audio)/1000:.2f}s, Trimmed duration: {len(trimmed_audio)/1000:.2f}s")
+        
+        # Convert back to PCM bytes
+        trimmed_pcm_io = io.BytesIO()
+        trimmed_audio.export(trimmed_pcm_io, format="raw")
+        trimmed_pcm_data = trimmed_pcm_io.getvalue()
+        
+        print(f"[WS-TTS] First chunk silence removal: {len(pcm_data)} → {len(trimmed_pcm_data)} bytes")
+        
+        return trimmed_pcm_data
+        
+    except Exception as e:
+        print(f"[WS-TTS] Error removing silence from first chunk: {e}")
+        return pcm_data  # Return original data if error occurs
+
 def generate_audio_chunks(text, request_start_time, audio_format):
     """Generate audio chunks for streaming (similar to vllm-demo.py)"""
     global global_cosyvoice, global_prompt_speech_16k, global_normalized_prompt_text
@@ -186,6 +248,7 @@ async def websocket_tts(websocket: WebSocket):
                 # For PCM format, no conversion needed
                 pcm_buffer = bytearray()
                 pcm_chunk_counter = 0
+                is_first_chunk = True  # Track first chunk for silence removal
                 # Calculate target PCM bytes per chunk (approximate)
                 segment_duration = 1.0  # 1 second chunks
                 target_pcm_bytes_per_chunk = int(output_sample_rate * 2 * segment_duration)  # 2 bytes per sample
@@ -395,7 +458,17 @@ async def websocket_tts(websocket: WebSocket):
                         # Convert to 16-bit PCM
                         pcm_data = (audio_np * 32767).astype(np.int16).tobytes()
                         
-                        # Add PCM data to buffer
+                        # Apply silence removal to first chunk if PCM format
+                        if audio_format.lower() == "pcm" and is_first_chunk:
+                            silence_removal_start = time.time()
+                            # Replace pcm_data with silence-removed version - only this processed data goes to clients
+                            pcm_data = remove_silence_from_first_pcm_chunk(pcm_data, output_sample_rate)
+                            silence_removal_time = (time.time() - silence_removal_start) * 1000
+                            print(f"[WS-TTS] 🎯 First chunk silence removal time: {silence_removal_time:.2f}ms")
+                            print(f"[WS-TTS] 🎯 First chunk: sending only silence-removed PCM data to clients")
+                            is_first_chunk = False  # Mark that we've processed the first chunk
+                        
+                        # Add PCM data to buffer (for first chunk, this is the silence-removed data)
                         pcm_buffer.extend(pcm_data)
                         
                         audio_convert_time = (time.time() - audio_convert_start) * 1000
@@ -417,7 +490,7 @@ async def websocket_tts(websocket: WebSocket):
                                 
                                 print(f"[WS-TTS] 📦 PCM chunk {pcm_chunk_counter} sent: {len(pcm_chunk)} bytes, send time: {send_time:.2f}ms")
                                 
-                                # Save PCM chunk to file if requested
+                                # Save PCM chunk to file if requested (silence already removed)
                                 if save_audio_files and chunk_save_folder:
                                     chunk_filename = f"chunk_{pcm_chunk_counter}.pcm"
                                     chunk_filepath = os.path.join(chunk_save_folder, chunk_filename)
@@ -610,246 +683,6 @@ async def generate_tts(request: TTSRequest):
         media_type=media_type,
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
-
-@app.websocket("/streaming-tts")
-async def websocket_streaming_tts(websocket: WebSocket):
-    """
-    WebSocket TTS endpoint that streams gapless MP3 chunks as they're generated
-    """
-    await websocket.accept()
-    print(f"[STREAMING-TTS] WebSocket connection established")
-    
-    try:
-        while True:
-            # Receive TTS request from client
-            data = await websocket.receive_text()
-            request_data = json.loads(data)
-            
-            # Start timing
-            start_time = time.time()
-            print(f"[STREAMING-TTS] Request start time: {time.strftime('%H:%M:%S.%f')[:-3]}")
-            
-            # Extract text parameter
-            text = request_data.get("text", "")
-            save_mp3_files = request_data.get("saveMp3Files", False)
-            
-            if not text:
-                await websocket.send_text(json.dumps({"error": "Text is required"}))
-                continue
-            
-            if global_cosyvoice is None or global_prompt_speech_16k is None:
-                await websocket.send_text(json.dumps({"error": "Model not initialized"}))
-                continue
-            
-            print(f"[STREAMING-TTS] Generating MP3 chunks for text: {text[:50]}{'...' if len(text) > 50 else ''}")
-            if save_mp3_files:
-                print(f"[STREAMING-TTS] Will save MP3 chunks to files")
-            
-            # Setup folder for saving MP3 chunks if requested
-            chunk_save_folder = None
-            chunk_file_counter = 0
-            if save_mp3_files:
-                chunk_save_folder = os.path.join(os.path.dirname(__file__), "cosy_mp3_chunks")
-                os.makedirs(chunk_save_folder, exist_ok=True)
-                print(f"[STREAMING-TTS] Created/verified chunk save folder: {chunk_save_folder}")
-            
-            try:
-                # Setup continuous MP3 encoder
-                encoder_process = subprocess.Popen([
-                    'ffmpeg',
-                    '-f', 'f32le',           # CosyVoice outputs float32
-                    '-ar', str(global_cosyvoice.sample_rate),  # CosyVoice sample rate (24000)
-                    '-ac', '1',              # Mono
-                    '-i', 'pipe:0',          # Read from stdin
-                    '-c:a', 'libmp3lame',    # MP3 encoder
-                    '-b:a', '320k',          # 320 kbps
-                    '-ar', '16000',          # Resample to 16kHz for Android
-                    '-ac', '1',              # Mono output
-                    '-f', 'mp3',             # MP3 format
-                    '-write_id3v1', '0',     # No ID3v1
-                    '-write_id3v2', '0',     # No ID3v2
-                    '-id3v2_version', '0',   # No ID3v2
-                    '-write_xing', '0',      # No Xing header
-                    '-fflags', '+bitexact',
-                    'pipe:1'                 # Output to stdout
-                ], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                
-                print(f"[STREAMING-TTS] MP3 encoder process started")
-                
-                # Queue to collect MP3 data
-                mp3_queue = Queue()
-                encoder_error = None
-                
-                def read_mp3_output():
-                    """Read MP3 data from encoder in separate thread"""
-                    nonlocal encoder_error
-                    try:
-                        chunk_size = 8192  # Read in 8KB chunks
-                        while True:
-                            mp3_data = encoder_process.stdout.read(chunk_size)
-                            if not mp3_data:
-                                break
-                            mp3_queue.put(mp3_data)
-                    except Exception as e:
-                        encoder_error = e
-                        print(f"[STREAMING-TTS] MP3 reader error: {e}")
-                
-                # Start MP3 output reader thread
-                mp3_reader_thread = threading.Thread(target=read_mp3_output)
-                mp3_reader_thread.start()
-                
-                # === TTS GENERATION AND MP3 ENCODING ===
-                pre_inference_time = time.time()
-                pre_processing_duration = (pre_inference_time - start_time) * 1000
-                print(f"[STREAMING-TTS] Pre-processing time: {pre_processing_duration:.2f}ms")
-                
-                inference_start_time = time.time()
-                print(f"[STREAMING-TTS] Starting inference at: {time.strftime('%H:%M:%S.%f')[:-3]}")
-                
-                first_chunk_generated = False
-                first_chunk_sent = False
-                chunk_count = 0
-                
-                # Text normalization
-                text_norm_start = time.time()
-                normalized_text_chunks = global_cosyvoice.frontend.text_normalize(text, split=True, text_frontend=False)
-                text_norm_time = (time.time() - text_norm_start) * 1000
-                print(f"[STREAMING-TTS] Text normalization time: {text_norm_time:.2f}ms, got {len(normalized_text_chunks)} chunks")
-                
-                # Process all text chunks
-                for chunk_idx, text_chunk in enumerate(normalized_text_chunks):
-                    print(f"[STREAMING-TTS] Processing text chunk {chunk_idx + 1}/{len(normalized_text_chunks)}: {text_chunk[:50]}...")
-                    
-                    # Generate audio using CosyVoice streaming
-                    for i, j in enumerate(global_cosyvoice.inference_zero_shot(
-                        text_chunk, 
-                        global_normalized_prompt_text, 
-                        global_prompt_speech_16k, 
-                        zero_shot_spk_id='cached_prompt_spk', 
-                        stream=True
-                    )):
-                        chunk_start_time = time.time()
-                        chunk_count += 1
-                        
-                        # Record first chunk timing
-                        if not first_chunk_generated:
-                            first_chunk_time = (chunk_start_time - inference_start_time) * 1000
-                            first_chunk_since_request = (chunk_start_time - start_time) * 1000
-                            print(f"[STREAMING-TTS] First chunk generated time: {first_chunk_time:.2f}ms")
-                            print(f"[STREAMING-TTS] First chunk since request arrival: {first_chunk_since_request:.2f}ms")
-                            first_chunk_generated = True
-                        
-                        # Convert audio tensor to numpy float32
-                        audio_tensor = j['tts_speech']
-                        audio_np = audio_tensor.numpy().astype(np.float32)
-                        
-                        # Feed audio data to continuous MP3 encoder
-                        try:
-                            encoder_process.stdin.write(audio_np.tobytes())
-                            encoder_process.stdin.flush()
-                        except Exception as e:
-                            print(f"[STREAMING-TTS] Error writing to encoder: {e}")
-                            break
-                        
-                        # Read available MP3 data and send immediately
-                        mp3_chunks_sent = 0
-                        while not mp3_queue.empty():
-                            try:
-                                mp3_chunk = mp3_queue.get_nowait()
-                                if mp3_chunk:
-                                    await websocket.send_bytes(mp3_chunk)
-                                    mp3_chunks_sent += 1
-                                    
-                                    # Save MP3 chunk to file if requested
-                                    if save_mp3_files and chunk_save_folder:
-                                        chunk_filename = f"chunk_{chunk_file_counter}.mp3"
-                                        chunk_filepath = os.path.join(chunk_save_folder, chunk_filename)
-                                        try:
-                                            with open(chunk_filepath, 'wb') as f:
-                                                f.write(mp3_chunk)
-                                            print(f"[STREAMING-TTS] Saved {chunk_filename} ({len(mp3_chunk)} bytes)")
-                                            chunk_file_counter += 1
-                                        except Exception as save_error:
-                                            print(f"[STREAMING-TTS] Error saving chunk file: {save_error}")
-                                    
-                                    # Track first MP3 chunk sent
-                                    if not first_chunk_sent:
-                                        first_chunk_sent_time = time.time()
-                                        first_mp3_chunk_time = (first_chunk_sent_time - start_time) * 1000
-                                        print(f"[STREAMING-TTS] First MP3 chunk sent: {first_mp3_chunk_time:.2f}ms since request")
-                                        first_chunk_sent = True
-                            except:
-                                break
-                        
-                        chunk_processing_time = (time.time() - chunk_start_time) * 1000
-                        total_time_so_far = (time.time() - start_time) * 1000
-                        
-                        print(f"[STREAMING-TTS] Audio chunk {chunk_count} processed in {chunk_processing_time:.2f}ms, sent {mp3_chunks_sent} MP3 chunks, total time: {total_time_so_far:.2f}ms")
-                        
-                        await asyncio.sleep(0)  # Allow other tasks
-                
-                # Close encoder input to signal end
-                encoder_process.stdin.close()
-                
-                # Send remaining MP3 data
-                final_mp3_chunks = 0
-                while mp3_reader_thread.is_alive() or not mp3_queue.empty():
-                    try:
-                        mp3_chunk = mp3_queue.get(timeout=0.1)
-                        if mp3_chunk:
-                            await websocket.send_bytes(mp3_chunk)
-                            final_mp3_chunks += 1
-                            
-                            # Save final MP3 chunk to file if requested
-                            if save_mp3_files and chunk_save_folder:
-                                chunk_filename = f"chunk_{chunk_file_counter}.mp3"
-                                chunk_filepath = os.path.join(chunk_save_folder, chunk_filename)
-                                try:
-                                    with open(chunk_filepath, 'wb') as f:
-                                        f.write(mp3_chunk)
-                                    print(f"[STREAMING-TTS] Saved final {chunk_filename} ({len(mp3_chunk)} bytes)")
-                                    chunk_file_counter += 1
-                                except Exception as save_error:
-                                    print(f"[STREAMING-TTS] Error saving final chunk file: {save_error}")
-                    except:
-                        break
-                
-                # Wait for processes to complete
-                encoder_process.wait()
-                mp3_reader_thread.join(timeout=1.0)
-                
-                total_generation_time = (time.time() - start_time) * 1000
-                print(f"[STREAMING-TTS] MP3 streaming completed in {total_generation_time:.2f}ms, sent {final_mp3_chunks} final chunks")
-                
-                if save_mp3_files:
-                    print(f"[STREAMING-TTS] Saved {chunk_file_counter} MP3 chunk files to {chunk_save_folder}")
-                
-                if encoder_error:
-                    print(f"[STREAMING-TTS] Encoder error: {encoder_error}")
-                
-            except Exception as inference_error:
-                print(f"[STREAMING-TTS] Inference error: {str(inference_error)}")
-                print(f"[STREAMING-TTS] Error type: {type(inference_error)}")
-                import traceback
-                print(f"[STREAMING-TTS] Traceback: {traceback.format_exc()}")
-                await websocket.send_text(json.dumps({"error": f"MP3 TTS generation failed: {str(inference_error)}"}))
-                
-                # Clean up encoder process if still running
-                try:
-                    if 'encoder_process' in locals():
-                        encoder_process.terminate()
-                        encoder_process.wait(timeout=1.0)
-                except:
-                    pass
-            
-    except WebSocketDisconnect:
-        print(f"[STREAMING-TTS] WebSocket connection disconnected")
-    except Exception as e:
-        print(f"[STREAMING-TTS] WebSocket error: {str(e)}")
-        try:
-            await websocket.send_text(json.dumps({"error": f"WebSocket error: {str(e)}"}))
-        except:
-            pass
 
 # Initialize model on startup
 @app.on_event("startup")

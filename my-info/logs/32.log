@@ -1,0 +1,44 @@
+WARNING 07-01 11:32:49 [preprocess.py:63] Using None for EOS token id because tokenizer is not initialized
+INFO 07-01 11:32:49 [metrics.py:486] Avg prompt throughput: 22.5 tokens/s, Avg generation throughput: 10.2 tokens/s, Running: 1 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.0%, CPU KV cache usage: 0.0%.
+2025-07-01 11:32:50,135 INFO yield speech len 1.8, rtf 0.24479309717814127
+[WS-TTS] ⚡ First chunk generated time: 493.27ms
+[WS-TTS] ⚡ First chunk since request arrival: 493.47ms
+[WS-TTS] ⚡ Zero-shot inference time: 493.21ms
+[WS-TTS] 🔄 Resampled chunk 1: 1.69ms (24000 → 8000 Hz)
+[WS-TTS] Detecting non-silent segments in first chunk...
+[WS-TTS] Parameters: min_silence_len=200ms, silence_thresh=-50dBFS
+[WS-TTS] Found 1 voice segments in first chunk
+[WS-TTS] First voice segment: 538ms to 1800ms (with padding: 438ms to 1800ms)
+[WS-TTS] Original duration: 1.80s, Trimmed duration: 1.36s
+[WS-TTS] First chunk silence removal: 28800 → 21792 bytes
+[WS-TTS] 🎯 First chunk silence removal time: 11.11ms
+[WS-TTS] 🎯 First chunk: sending only silence-removed PCM data to clients
+[WS-TTS] 🎵 Audio to PCM conversion time: 12.96ms, PCM buffer size: 21792 bytes
+[WS-TTS] 📦 PCM chunk 0 sent: 16000 bytes, send time: 0.08ms
+[WS-TTS] Saved chunk_0.pcm (16000 bytes)
+[WS-TTS] 🎯 Time to send first PCM chunk: 506.71 ms since start, 506.54 ms since before inference
+[WS-TTS] 📊 Audio chunk 1 (text chunk 1) processed in 13.33ms, total time: 506.80ms
+2025-07-01 11:32:50,330 INFO yield speech len 1.0, rtf 0.18134212493896484
+[WS-TTS] 🔄 Resampled chunk 2: 0.58ms (24000 → 8000 Hz)
+[WS-TTS] 🎵 Audio to PCM conversion time: 0.66ms, PCM buffer size: 21792 bytes
+[WS-TTS] 📦 PCM chunk 1 sent: 16000 bytes, send time: 0.08ms
+[WS-TTS] Saved chunk_1.pcm (16000 bytes)
+[WS-TTS] 📊 Audio chunk 2 (text chunk 1) processed in 1.04ms, total time: 689.31ms
+2025-07-01 11:32:50,513 INFO yield speech len 1.0, rtf 0.1818554401397705
+[WS-TTS] 🔄 Resampled chunk 3: 0.58ms (24000 → 8000 Hz)
+[WS-TTS] 🎵 Audio to PCM conversion time: 0.66ms, PCM buffer size: 21792 bytes
+[WS-TTS] 📦 PCM chunk 2 sent: 16000 bytes, send time: 0.08ms
+[WS-TTS] Saved chunk_2.pcm (16000 bytes)
+[WS-TTS] 📊 Audio chunk 3 (text chunk 1) processed in 1.05ms, total time: 872.35ms
+2025-07-01 11:32:50,626 INFO yield speech len 0.96, rtf 0.11607979734738669
+[WS-TTS] 🔄 Resampled chunk 4: 2.12ms (24000 → 8000 Hz)
+[WS-TTS] 🎵 Audio to PCM conversion time: 2.20ms, PCM buffer size: 21152 bytes
+[WS-TTS] 📦 PCM chunk 3 sent: 16000 bytes, send time: 0.09ms
+[WS-TTS] Saved chunk_3.pcm (16000 bytes)
+[WS-TTS] 📊 Audio chunk 4 (text chunk 1) processed in 2.56ms, total time: 986.46ms
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:00<00:00,  1.07it/s]
+[WS-TTS] 🔄 Processing remaining PCM data: 5152 bytes
+[WS-TTS] 📦 Final PCM chunk 4 sent: 5152 bytes, process time: 0.03ms
+[WS-TTS] Saved final chunk_4.pcm (5152 bytes)
+[WS-TTS] ✅ Time after inference: 988.09 ms since start, 987.93 ms since before inference
+[WS-TTS] 🏁 Audio generated in 0.99 sec
