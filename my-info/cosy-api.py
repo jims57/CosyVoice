@@ -55,6 +55,9 @@ global_prompt_speech_16k = None
 global_prompt_text = None
 global_normalized_prompt_text = None
 
+# Speaker cache for different speakerId values
+speaker_cache = {}
+
 def get_device():
     if torch.cuda.is_available():
         return 'cuda:0'
@@ -207,6 +210,58 @@ def generate_audio_chunks(text, request_start_time, audio_format):
         print(f"[TTS] Error after {error_time:.2f}ms: {str(e)}")
         yield b"Error: TTS generation failed"
 
+def load_and_cache_speaker(speaker_id):
+    """Load and cache speaker data for given speakerId"""
+    global speaker_cache
+    
+    if speaker_id in speaker_cache:
+        print(f"[Speaker Cache] Using cached speaker {speaker_id}")
+        return speaker_cache[speaker_id]
+    
+    print(f"[Speaker Cache] Loading new speaker {speaker_id}")
+    
+    # Load speaker audio file from speaker-specific folder
+    speaker_wav_path = f'./asset/speakerId-{speaker_id}/speakerId-{speaker_id}.wav'
+    speaker_txt_path = f'./asset/speakerId-{speaker_id}/speakerId-{speaker_id}.txt'
+    
+    try:
+        prompt_speech_16k = load_wav(speaker_wav_path, 16000)
+        
+        # Read prompt text from corresponding txt file
+        with open(speaker_txt_path, 'r', encoding='utf-8') as f:
+            prompt_text = f.read().strip()
+        
+        print(f"[Speaker Cache] Loaded prompt text for speaker {speaker_id}: {prompt_text[:50]}...")
+        
+        # Pre-normalize the prompt text
+        normalized_prompt_text = global_cosyvoice.frontend.text_normalize(prompt_text, split=False, text_frontend=True)
+        
+        # Pre-compute and cache speaker in CosyVoice
+        cache_key = f'cached_prompt_spk_{speaker_id}'
+        global_cosyvoice.add_zero_shot_spk(prompt_text, prompt_speech_16k, cache_key)
+        
+        # Cache speaker data
+        speaker_data = {
+            'prompt_speech_16k': prompt_speech_16k,
+            'prompt_text': prompt_text,
+            'normalized_prompt_text': normalized_prompt_text,
+            'cache_key': cache_key
+        }
+        
+        speaker_cache[speaker_id] = speaker_data
+        print(f"[Speaker Cache] Cached speaker {speaker_id} with key {cache_key}")
+        
+        return speaker_data
+        
+    except Exception as e:
+        print(f"[Speaker Cache] Error loading speaker {speaker_id}: {e}")
+        # Fallback to default speaker (speakerId 1)
+        if speaker_id != 1:
+            print(f"[Speaker Cache] Falling back to default speaker 1")
+            return load_and_cache_speaker(1)
+        else:
+            raise e
+
 @app.get("/")
 async def root():
     return {"message": "CosyVoice API is running"}
@@ -241,6 +296,7 @@ async def websocket_tts(websocket: WebSocket):
             
             # Extract parameters with defaults
             text = request_data.get("text", "")
+            speaker_id = request_data.get("speakerId", 1)  # Default to speakerId 1
             save_audio_files = request_data.get("saveAudioFiles", False)
             output_sample_rate = request_data.get("outputSampleRate", 22050)  # Default 22050 Hz (CosyVoice native)
             audio_format = request_data.get("audioFormat", "mp3")  # Default to mp3, can be "mp3" or "pcm"
@@ -249,8 +305,15 @@ async def websocket_tts(websocket: WebSocket):
                 await websocket.send_text(json.dumps({"error": "Text is required"}))
                 continue
             
-            if global_cosyvoice is None or global_prompt_speech_16k is None:
+            if global_cosyvoice is None:
                 await websocket.send_text(json.dumps({"error": "Model not initialized"}))
+                continue
+            
+            # Load and cache speaker data
+            try:
+                speaker_data = load_and_cache_speaker(speaker_id)
+            except Exception as e:
+                await websocket.send_text(json.dumps({"error": f"Failed to load speaker {speaker_id}: {str(e)}"}))
                 continue
             
             # Setup folder for saving audio chunks if requested
@@ -431,9 +494,9 @@ async def websocket_tts(websocket: WebSocket):
                     # Use inference_zero_shot for each text chunk to maintain proper ordering
                     for i, j in enumerate(global_cosyvoice.inference_zero_shot(
                         text_chunk, 
-                        global_normalized_prompt_text, 
-                        global_prompt_speech_16k, 
-                        zero_shot_spk_id='cached_prompt_spk', 
+                        speaker_data['normalized_prompt_text'], 
+                        speaker_data['prompt_speech_16k'], 
+                        zero_shot_spk_id=speaker_data['cache_key'], 
                         stream=True
                     )):
                         chunk_start_time = time.time()
@@ -721,9 +784,27 @@ async def startup_event():
     # Add this debug line to check the actual sample rate
     print(f"🔍 DEBUG: CosyVoice2-0.5B reported sample rate: {global_cosyvoice.sample_rate} Hz")
     
-    # Load prompt speech
-    global_prompt_speech_16k = load_wav('./asset/man-short.wav', 16000)
-    global_prompt_text = "Did you guys see the video of that dude who was at the gym who took his earbuds and just smacked them against the wall because they would not stay in his ear during his set? "
+    # Load prompt speech for default speaker (speakerId 1) from folder structure
+    global_prompt_speech_16k = load_wav('./asset/speakerId-1/speakerId-1.wav', 16000)
+    
+    # Read prompt text from speakerId-1.txt
+    with open('./asset/speakerId-1/speakerId-1.txt', 'r', encoding='utf-8') as f:
+        global_prompt_text = f.read().strip()
+    
+    print(f"[Startup] Loaded default prompt text: {global_prompt_text[:50]}...")
+    
+    # Pre-normalize the prompt text and cache default speaker
+    global_normalized_prompt_text = global_cosyvoice.frontend.text_normalize(global_prompt_text, split=False, text_frontend=True)
+    global_cosyvoice.add_zero_shot_spk(global_prompt_text, global_prompt_speech_16k, 'cached_prompt_spk')
+    
+    # Cache default speaker (speakerId 1) for consistency
+    speaker_cache[1] = {
+        'prompt_speech_16k': global_prompt_speech_16k,
+        'prompt_text': global_prompt_text,
+        'normalized_prompt_text': global_normalized_prompt_text,
+        'cache_key': 'cached_prompt_spk'
+    }
+    print(f"[Speaker Cache] Default speaker (ID 1) cached")
     
     # Pre-warm the model with a dummy inference AND pre-normalize prompt text
     print("Pre-warming model...")
