@@ -144,6 +144,8 @@ def generate_audio_chunks(text, request_start_time, audio_format):
         
         first_chunk_generated = False
         first_chunk_time = None
+        first_chunk_sent = False
+        first_chunk_sent_since_request = None  # Track first chunk sent timing
         chunk_count = 0
         
         # Pre-normalize input text with splitting enabled for faster first chunk
@@ -476,6 +478,7 @@ async def websocket_tts(websocket: WebSocket):
                 
                 first_chunk_generated = False
                 first_chunk_sent = False
+                first_chunk_sent_since_request = None  # Track first chunk sent timing
                 chunk_count = 0
                 
                 # === TEXT NORMALIZATION TIMING ===
@@ -589,6 +592,7 @@ async def websocket_tts(websocket: WebSocket):
                                     first_chunk_sent_time = time.time()
                                     elapsed_since_start = (first_chunk_sent_time - start_time) * 1000
                                     elapsed_since_before = (first_chunk_sent_time - before_inference_time) * 1000
+                                    first_chunk_sent_since_request = elapsed_since_start  # Store for summary
                                     print(f"[WS-TTS] 🎯 Time to send first PCM chunk: {elapsed_since_start:.2f} ms since start, {elapsed_since_before:.2f} ms since before inference")
                                     first_chunk_sent = True
                                 
@@ -633,6 +637,7 @@ async def websocket_tts(websocket: WebSocket):
                                         first_chunk_sent_time = time.time()
                                         elapsed_since_start = (first_chunk_sent_time - start_time) * 1000
                                         elapsed_since_before = (first_chunk_sent_time - before_inference_time) * 1000
+                                        first_chunk_sent_since_request = elapsed_since_start  # Store for summary
                                         print(f"[WS-TTS] 🎯 Time to send first MP3 chunk: {elapsed_since_start:.2f} ms since start, {elapsed_since_before:.2f} ms since before inference")
                                         first_chunk_sent = True
                                     
@@ -715,6 +720,15 @@ async def websocket_tts(websocket: WebSocket):
                 print(f"[WS-TTS] 📋   Sample Rate: {output_sample_rate} Hz")
                 print(f"[WS-TTS] 📋   Speaker ID: {speaker_id}")
                 print(f"[WS-TTS] 📋   Total Generation Time: {generation_time:.2f}s")
+                
+                # Add first chunk timing summary
+                if first_chunk_generated:
+                    print(f"[WS-TTS] 📋   First Chunk Inference Time: {first_chunk_time:.2f}ms")
+                    print(f"[WS-TTS] 📋   First Chunk Since Request: {first_chunk_since_request:.2f}ms")
+                    if first_chunk_sent_since_request is not None:
+                        print(f"[WS-TTS] 📋   First Chunk Sent Since Request: {first_chunk_sent_since_request:.2f}ms")
+                else:
+                    print(f"[WS-TTS] 📋   First Chunk: Not generated")
                 
                 if audio_format.lower() == "pcm":
                     print(f"[WS-TTS] 📊 Total PCM chunks sent: {pcm_chunk_counter}")
