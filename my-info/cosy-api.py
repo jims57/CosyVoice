@@ -709,6 +709,13 @@ async def websocket_tts(websocket: WebSocket):
                 generation_time = time.time() - start_time
                 print(f"[WS-TTS] 🏁 Audio generated in {generation_time:.2f} seconds")
                 
+                # === REQUEST SUMMARY ===
+                print(f"[WS-TTS] 📋 REQUEST SUMMARY:")
+                print(f"[WS-TTS] 📋   Audio Format: {audio_format}")
+                print(f"[WS-TTS] 📋   Sample Rate: {output_sample_rate} Hz")
+                print(f"[WS-TTS] 📋   Speaker ID: {speaker_id}")
+                print(f"[WS-TTS] 📋   Total Generation Time: {generation_time:.2f}s")
+                
                 if audio_format.lower() == "pcm":
                     print(f"[WS-TTS] 📊 Total PCM chunks sent: {pcm_chunk_counter}")
                     if save_audio_files:
