@@ -49,9 +49,9 @@ def remove_silence_from_wav(input_wav_path, output_wav_path, min_silence_len=100
 def main():
     # Adjustable parameters for fine-tuning
     PARAMETERS = {
-        'min_silence_len': 100,     # Minimum silence length in ms (increase to ignore short pauses)
-        'silence_thresh': -40,      # Silence threshold in dBFS (decrease for more sensitive detection)
-        'keep_silence': 50          # Amount of silence to keep around each segment in ms
+        'min_silence_len': 200,     # Minimum silence length in ms (increase to ignore short pauses)
+        'silence_thresh': -50,      # Silence threshold in dBFS (decrease for more sensitive detection)
+        'keep_silence': 100          # Amount of silence to keep around each segment in ms
     }
     
     # Define file paths
