@@ -553,11 +553,14 @@ async def websocket_tts(websocket: WebSocket):
                             
                             # IMMEDIATE FIRST CHUNK SEND - Don't wait for buffer accumulation
                             if len(pcm_data) > 0:
+                                # Measure timing immediately before send
+                                pre_send_time = time.time()
+                                
                                 send_start = time.time()
                                 await websocket.send_bytes(pcm_data)
                                 send_time = (time.time() - send_start) * 1000
                                 
-                                # Track first chunk sent timing
+                                # Track first chunk sent timing immediately after send
                                 first_chunk_sent_time = time.time()
                                 elapsed_since_start = (first_chunk_sent_time - start_time) * 1000
                                 elapsed_since_before = (first_chunk_sent_time - before_inference_time) * 1000
@@ -566,6 +569,7 @@ async def websocket_tts(websocket: WebSocket):
                                 
                                 print(f"[WS-TTS] 🚀 IMMEDIATE first PCM chunk sent: {len(pcm_data)} bytes, send time: {send_time:.2f}ms")
                                 print(f"[WS-TTS] 🎯 Time to send first PCM chunk: {elapsed_since_start:.2f} ms since start, {elapsed_since_before:.2f} ms since before inference")
+                                print(f"[WS-TTS] 📡 WebSocket send operation completed at: {time.strftime('%H:%M:%S.%f')[:-3]}")
                                 
                                 # Save first chunk to file if requested
                                 if save_audio_files and chunk_save_folder:
