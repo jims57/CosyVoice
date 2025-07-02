@@ -276,6 +276,21 @@ async def websocket_tts(websocket: WebSocket):
     await websocket.accept()
     print(f"[WS-TTS] WebSocket connection established")
     
+    # Optimize WebSocket for low latency
+    try:
+        # Access the underlying connection and optimize TCP settings
+        if hasattr(websocket, '_connection') and hasattr(websocket._connection, 'transport'):
+            transport = websocket._connection.transport
+            if hasattr(transport, 'get_extra_info'):
+                sock = transport.get_extra_info('socket')
+                if sock:
+                    import socket
+                    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 8192)
+                    print(f"[WS-TTS] WebSocket optimized: TCP_NODELAY enabled, small send buffer")
+    except Exception as e:
+        print(f"[WS-TTS] Could not optimize WebSocket: {e}")
+    
     # Check X-API-Key header for authorization
     api_key = websocket.headers.get("x-api-key")
     if not api_key or api_key not in VALID_API_KEYS:
@@ -553,23 +568,34 @@ async def websocket_tts(websocket: WebSocket):
                             
                             # IMMEDIATE FIRST CHUNK SEND - Don't wait for buffer accumulation
                             if len(pcm_data) > 0:
-                                # Measure timing immediately before send
+                                # Detailed timing around the send operation
                                 pre_send_time = time.time()
+                                print(f"[WS-TTS] 📊 About to send first chunk at: {time.strftime('%H:%M:%S.%f')[:-3]}")
                                 
                                 send_start = time.time()
                                 await websocket.send_bytes(pcm_data)
-                                send_time = (time.time() - send_start) * 1000
+                                send_end = time.time()
+                                
+                                # Force any pending I/O to complete
+                                await asyncio.sleep(0)
+                                
+                                post_send_time = time.time()
+                                
+                                send_time = (send_end - send_start) * 1000
+                                flush_time = (post_send_time - send_end) * 1000
                                 
                                 # Track first chunk sent timing immediately after send
-                                first_chunk_sent_time = time.time()
+                                first_chunk_sent_time = post_send_time
                                 elapsed_since_start = (first_chunk_sent_time - start_time) * 1000
                                 elapsed_since_before = (first_chunk_sent_time - before_inference_time) * 1000
                                 first_chunk_sent_since_request = elapsed_since_start  # Store for summary
                                 first_chunk_sent = True
                                 
-                                print(f"[WS-TTS] 🚀 IMMEDIATE first PCM chunk sent: {len(pcm_data)} bytes, send time: {send_time:.2f}ms")
-                                print(f"[WS-TTS] 🎯 Time to send first PCM chunk: {elapsed_since_start:.2f} ms since start, {elapsed_since_before:.2f} ms since before inference")
-                                print(f"[WS-TTS] 📡 WebSocket send operation completed at: {time.strftime('%H:%M:%S.%f')[:-3]}")
+                                print(f"[WS-TTS] 🚀 IMMEDIATE first PCM chunk sent: {len(pcm_data)} bytes")
+                                print(f"[WS-TTS] 📊 Send operation: {send_time:.2f}ms, flush: {flush_time:.2f}ms")
+                                print(f"[WS-TTS] 🎯 Time to send first PCM chunk: {elapsed_since_start:.2f} ms since start")
+                                print(f"[WS-TTS] 📡 WebSocket send completed at: {time.strftime('%H:%M:%S.%f')[:-3]}")
+                                print(f"[WS-TTS] 🔍 Network should deliver within 10-50ms to client")
                                 
                                 # Save first chunk to file if requested
                                 if save_audio_files and chunk_save_folder:
