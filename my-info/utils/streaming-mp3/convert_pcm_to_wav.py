@@ -142,7 +142,7 @@ def main():
         return
     
     # Convert the file with specified parameters: 16kHz, mono, 16-bit
-    convert_pcm_to_wav(pcm_file, wav_file, sample_rate=24000, channels=1, sample_width=2)
+    convert_pcm_to_wav(pcm_file, wav_file, sample_rate=8000, channels=1, sample_width=2)
 
 if __name__ == "__main__":
     main()
