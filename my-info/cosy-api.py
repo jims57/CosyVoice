@@ -1,3 +1,60 @@
+"""
+CosyVoice API Server - Text-to-Speech WebSocket & REST API
+
+USAGE INSTRUCTIONS:
+==================
+
+1. PERMISSION SETTINGS:
+   - Ensure the script has execute permissions:
+     chmod +x cosy-api.py
+
+2. PACKAGE INSTALLATION:
+   - Install required dependencies:
+     pip install torch torchaudio
+     pip install fastapi uvicorn websockets
+     pip install pydub
+     pip install onnxruntime-gpu  # or onnxruntime for CPU
+     pip install vllm
+   
+   - Ensure ffmpeg is installed for MP3 conversion:
+     # Ubuntu/Debian:
+     sudo apt-get install ffmpeg
+     # macOS:
+     brew install ffmpeg
+     # Windows: Download from https://ffmpeg.org/
+
+3. MODEL SETUP:
+   - Ensure CosyVoice2 model is downloaded to: pretrained_models/CosyVoice2-0.5B/
+   - Ensure speaker files are in: ./asset/speakerId-{ID}/speakerId-{ID}.wav and .txt
+
+4. USAGE EXAMPLES:
+   - Run with default port 9003:
+     python cosy-api.py
+   
+   - Run with custom port 8080:
+     python cosy-api.py --port 8080
+   
+   - Run with custom port 9004:
+     python cosy-api.py --port 9004
+   
+   - Get help:
+     python cosy-api.py --help
+
+5. API ENDPOINTS:
+   - WebSocket TTS: ws://localhost:{port}/cosy-tts
+   - REST TTS: POST http://localhost:{port}/tts
+   - Health check: GET http://localhost:{port}/
+
+6. AUTHENTICATION:
+   - WebSocket requires X-API-Key header with valid API key
+   - See VALID_API_KEYS in code for accepted keys
+
+7. SUPPORTED AUDIO FORMATS:
+   - PCM (raw audio data)
+   - MP3 (compressed audio)
+   - WAV (REST API only)
+"""
+
 import sys
 sys.path.append('third_party/Matcha-TTS')
 
@@ -14,6 +71,7 @@ import json
 import base64
 import os
 import glob
+import argparse
 from typing import Optional
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
@@ -971,4 +1029,8 @@ async def startup_event():
     print("="*50 + "\n")
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=9003)
+    parser = argparse.ArgumentParser(description='CosyVoice API Server')
+    parser.add_argument('--port', type=int, default=9003, help='Port number to run the server on (default: 9003)')
+    args = parser.parse_args()
+    
+    uvicorn.run(app, host="0.0.0.0", port=args.port)
