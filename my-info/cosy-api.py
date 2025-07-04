@@ -331,7 +331,24 @@ async def websocket_tts(websocket: WebSocket):
     """
     WebSocket TTS endpoint that streams audio chunks as they're generated
     """
+    # Configure WebSocket with extended timeout for long audio streams
     await websocket.accept()
+    
+    # Set extended timeout to prevent disconnection during long audio generation
+    # Configure websocket to handle long-running operations without timeout
+    if hasattr(websocket, '_connection') and hasattr(websocket._connection, 'transport'):
+        try:
+            # Set socket timeout for long operations (10 minutes)
+            transport = websocket._connection.transport
+            if hasattr(transport, 'get_extra_info'):
+                sock = transport.get_extra_info('socket')
+                if sock:
+                    import socket
+                    sock.settimeout(600)  # 10 minutes timeout
+                    print(f"[WS-TTS] WebSocket timeout set to 10 minutes")
+        except Exception as e:
+            print(f"[WS-TTS] Could not set extended timeout: {e}")
+    
     print(f"[WS-TTS] WebSocket connection established")
     
     # Optimize WebSocket for low latency
