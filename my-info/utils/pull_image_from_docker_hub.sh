@@ -1,0 +1,1 @@
+version="1.2.1" && server_name="cosy-tts" && image_prefix="jims57" && image_name="${image_prefix}/${server_name}" && tag="v${version}" && docker pull "${image_name}:${tag}"

@@ -322,11 +322,14 @@ def load_and_cache_speaker(speaker_id):
         else:
             raise e
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def root():
-    return {"message": "CosyVoice API is running"}
+    return {
+        "errorCode": 0,  # 0 typically indicates success
+        "message": "CosyVoice API is running"
+    }
 
-@app.websocket("/cosy-tts")
+@app.websocket("/tts")
 async def websocket_tts(websocket: WebSocket):
     """
     WebSocket TTS endpoint that streams audio chunks as they're generated
