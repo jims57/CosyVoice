@@ -879,6 +879,10 @@ async def websocket_tts(websocket: WebSocket):
                     if save_audio_files:
                         print(f"[WS-TTS] Saved {mp3_chunk_counter} MP3 chunk files to {chunk_save_folder}")
                 
+                # Send an empty chunk to signal completion (for both MP3 and PCM)
+                await websocket.send_bytes(b'')
+                print(f"[WS-TTS] 📡 Empty completion chunk sent for {audio_format.upper()} format")
+                
             except Exception as inference_error:
                 print(f"Inference error: {str(inference_error)}")
                 print(f"Error type: {type(inference_error)}")
