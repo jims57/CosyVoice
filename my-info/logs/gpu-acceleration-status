@@ -1,0 +1,16 @@
+==================================================
+🚀 GPU ACCELERATION STATUS
+==================================================
+✅ CUDA Available: True
+✅ CUDA Version: 12.6
+✅ CUDNN Version: 90501
+✅ CUDNN Enabled: True
+✅ GPU Device: NVIDIA GeForce RTX 4090
+✅ GPU Memory: 23.6 GB
+✅ ONNX Providers: ['TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider']
+✅ ONNX CUDA Acceleration: ENABLED
+✅ VLLM Acceleration: ENABLED
+✅ VLLM GPU Memory Utilization: Configured
+==================================================
+🎯 Ready for high-performance TTS inference!
+==================================================
