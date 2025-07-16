@@ -1,6 +1,7 @@
 import os
 import wave
 import glob
+import re
 
 def combine_pcm_to_wav(pcm_chunks_dir, output_wav_path, sample_rate=8000, channels=1, sample_width=2):
     """
@@ -15,7 +16,8 @@ def combine_pcm_to_wav(pcm_chunks_dir, output_wav_path, sample_rate=8000, channe
     """
     # Get all PCM files and sort them by filename to maintain order
     pcm_files = glob.glob(os.path.join(pcm_chunks_dir, "*.pcm"))
-    pcm_files.sort()  # This will sort chunk_0.pcm, chunk_1.pcm, chunk_2.pcm, etc.
+    # Sort numerically by extracting the chunk number
+    pcm_files.sort(key=lambda x: int(re.search(r'chunk_(\d+)\.pcm', os.path.basename(x)).group(1)))
     
     combined_pcm_data = b''
     
@@ -45,7 +47,7 @@ def main():
     output_wav_path = os.path.join(combined_wav_dir, "combined_audio.wav")
     
     print("Combining all PCM chunks into a single WAV file...")
-    combine_pcm_to_wav(pcm_chunks_dir, output_wav_path, sample_rate=8000, channels=1)
+    combine_pcm_to_wav(pcm_chunks_dir, output_wav_path, sample_rate=6000, channels=1)
     print(f"Combined WAV file saved: {output_wav_path}")
 
 if __name__ == "__main__":

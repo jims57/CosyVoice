@@ -42,7 +42,7 @@ def main():
         wav_file_path = os.path.join(wav_chunks_dir, wav_file_name)
         
         print(f"Converting {pcm_file} to {wav_file_name}")
-        convert_pcm_to_wav(pcm_file_path, wav_file_path, sample_rate=8000, channels=1)
+        convert_pcm_to_wav(pcm_file_path, wav_file_path, sample_rate=6000, channels=1)
         print(f"Conversion complete: {wav_file_path}")
 
 if __name__ == "__main__":
