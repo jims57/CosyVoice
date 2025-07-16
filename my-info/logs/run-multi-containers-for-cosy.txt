@@ -1,0 +1,15 @@
+version="1.3.5"
+server_name="cosy-tts"
+image_prefix="jims57"
+image_name="${image_prefix}/cosy-tts"
+tag="v${version}"
+
+
+==== (auto starting api) ====
+docker rm "cosy-tts-1" -f && docker rm "${server_name}" -f && docker run --gpus all -it --cpus="4" --memory="16g" --cpuset-cpus="0-3" -p 9000:9000 -p 9001:9001 --shm-size=3g -w /root/CosyVoice --name "cosy-tts-1" "${image_name}:${tag}" /bin/bash -c "bash /root/.jupyter_startup.sh && rm -f pretrained_models/CosyVoice2-0.5B/flow.decoder.estimator.fp16.mygpu.plan && cd ~/CosyVoice && /root/CosyVoice/cosy_vllm/bin/python cosy-api.py --port 9001; /bin/bash"
+
+docker rm "cosy-tts-2" -f && docker rm "${server_name}" -f && docker run --gpus all -it --cpus="4" --memory="16g" --cpuset-cpus="4-7" -p 9002:9002 --shm-size=3g -w /root/CosyVoice --name "cosy-tts-2" "${image_name}:${tag}" /bin/bash -c "bash /root/.jupyter_startup.sh && rm -f pretrained_models/CosyVoice2-0.5B/flow.decoder.estimator.fp16.mygpu.plan && cd ~/CosyVoice && /root/CosyVoice/cosy_vllm/bin/python cosy-api.py --port 9002; /bin/bash"
+
+docker rm "cosy-tts-3" -f && docker rm "${server_name}" -f && docker run --gpus all -it --cpus="4" --memory="16g" --cpuset-cpus="8-11" -p 9003:9003 --shm-size=3g -w /root/CosyVoice --name "cosy-tts-3" "${image_name}:${tag}" /bin/bash -c "bash /root/.jupyter_startup.sh && rm -f pretrained_models/CosyVoice2-0.5B/flow.decoder.estimator.fp16.mygpu.plan && cd ~/CosyVoice && /root/CosyVoice/cosy_vllm/bin/python cosy-api.py --port 9003; /bin/bash"
+
+docker rm "cosy-tts-4" -f && docker rm "${server_name}" -f && docker run --gpus all -it --cpus="4" --memory="16g" --cpuset-cpus="12-15" -p 9004:9004 --shm-size=3g -w /root/CosyVoice --name "cosy-tts-4" "${image_name}:${tag}" /bin/bash -c "bash /root/.jupyter_startup.sh && rm -f pretrained_models/CosyVoice2-0.5B/flow.decoder.estimator.fp16.mygpu.plan && cd ~/CosyVoice && /root/CosyVoice/cosy_vllm/bin/python cosy-api.py --port 9004; /bin/bash"
