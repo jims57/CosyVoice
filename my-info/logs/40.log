@@ -1,0 +1,30 @@
+[WS-TTS] 📦 PCM chunk 9 sent with header: 12 header + 16000 PCM = 16012 total bytes
+[WS-TTS] Send time: 0.97ms
+[WS-TTS] Saved chunk_9.pcm (16000 bytes)
+[WS-TTS] 📊 Audio chunk 10 (text chunk 1) processed in 1.85ms, total time: 2486.06ms
+2025-07-16 06:55:08,533 INFO yield speech len 0.68, rtf 0.3137427217820111
+[rank0]:[W716 06:55:08.391506669 NNPACK.cpp:57] Could not initialize NNPACK! Reason: Unsupported hardware.
+[WS-TTS] 🔄 Resampled chunk 11: 0.64ms (24000 → 8000 Hz)
+[WS-TTS] 🎵 Audio to PCM conversion time: 0.74ms, PCM buffer size: 10880 bytes
+[WS-TTS] 📊 Audio chunk 11 (text chunk 1) processed in 0.76ms, total time: 2700.30ms
+100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:02<00:00,  2.72s/it]
+[WS-TTS] 🔄 Processing remaining PCM data: 10880 bytes
+[WS-TTS] 📦 Final PCM chunk 10 sent with header: 12 header + 10880 PCM = 10892 total bytes
+[WS-TTS] Process time: 0.38ms
+[WS-TTS] Saved final chunk_10.pcm (10880 bytes)
+[WS-TTS] ✅ Time after inference: 2718.47 ms since start, 2718.26 ms since before inference
+[WS-TTS] 🏁 Audio generated in 2.72 seconds
+[WS-TTS] 📋 REQUEST SUMMARY:
+[WS-TTS] 📋   Audio Format: pcm
+[WS-TTS] 📋   Sample Rate: 8000 Hz
+[WS-TTS] 📋   Speaker ID: 1
+[WS-TTS] 📋   Message Headers: Yes
+[WS-TTS] 📋   StartTimeId: 1752634739864
+[WS-TTS] 📋   MessageId: 12345678
+[WS-TTS] 📋   Total Generation Time: 2.72s
+[WS-TTS] 📋   First Chunk Inference Time: 436.84ms
+[WS-TTS] 📋   First Chunk Since Request: 437.06ms
+[WS-TTS] 📋   First Chunk Sent Since Request: 446.48ms
+[WS-TTS] 📊 Total PCM chunks sent: 11
+[WS-TTS] Saved 11 PCM chunk files to /root/CosyVoice/cosy_mp3_chunks
+[WS-TTS] 📡 Empty completion chunk sent with header for PCM format

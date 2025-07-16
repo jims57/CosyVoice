@@ -378,6 +378,19 @@ async def websocket_tts(websocket: WebSocket):
         return
     
     print(f"[WS-TTS] Authorized connection with valid API key")
+
+    def create_header_bytes(start_time_id, message_id):
+        """
+        创建固定长度的消息头部字节
+        startTimeId: 8字节 (64位大端序整数)
+        messageId: 4字节 (32位大端序整数)
+        总计: 12字节
+        """
+        import struct
+        # 使用大端序格式，便于Java解析
+        # Q = 64位无符号整数，I = 32位无符号整数
+        header = struct.pack('>QI', start_time_id, message_id)
+        return header
     
     try:
         while True:
@@ -395,6 +408,25 @@ async def websocket_tts(websocket: WebSocket):
             save_audio_files = request_data.get("saveAudioFiles", False)
             output_sample_rate = request_data.get("outputSampleRate", 22050)  # Default 22050 Hz (CosyVoice native)
             audio_format = request_data.get("audioFormat", "mp3")  # Default to mp3, can be "mp3" or "pcm"
+            
+            # 提取新增的消息标识参数
+            start_time_id = request_data.get("startTimeId")
+            message_id = request_data.get("messageId")
+            
+            # 判断是否需要添加消息头部
+            has_message_headers = start_time_id is not None and message_id is not None
+            
+            if has_message_headers:
+                print(f"[WS-TTS] Message headers detected - startTimeId: {start_time_id}, messageId: {message_id}")
+                # 验证参数范围
+                if not isinstance(start_time_id, int) or start_time_id < 0:
+                    await websocket.send_text(json.dumps({"error": "startTimeId must be a non-negative integer"}))
+                    continue
+                if not isinstance(message_id, int) or message_id < 1 or message_id > 4294967295:
+                    await websocket.send_text(json.dumps({"error": "messageId must be an integer between 1 and 4294967295"}))
+                    continue
+            else:
+                print(f"[WS-TTS] No message headers - using standard PCM streaming")
             
             if not text:
                 await websocket.send_text(json.dumps({"error": "Text is required"}))
@@ -650,8 +682,17 @@ async def websocket_tts(websocket: WebSocket):
                                 pre_send_time = time.time()
                                 print(f"[WS-TTS] 📊 About to send first chunk at: {time.strftime('%H:%M:%S.%f')[:-3]}")
                                 
+                                # 根据是否有消息头部决定发送格式
                                 send_start = time.time()
-                                await websocket.send_bytes(pcm_data)
+                                if has_message_headers:
+                                    # 添加消息头部到PCM数据前面
+                                    header_bytes = create_header_bytes(start_time_id, message_id)
+                                    data_to_send = header_bytes + pcm_data
+                                    print(f"[WS-TTS] 📋 Adding header to first chunk: {len(header_bytes)} header + {len(pcm_data)} PCM = {len(data_to_send)} total bytes")
+                                    await websocket.send_bytes(data_to_send)
+                                else:
+                                    # 直接发送PCM数据
+                                    await websocket.send_bytes(pcm_data)
                                 send_end = time.time()
                                 
                                 # Force any pending I/O to complete
@@ -681,8 +722,16 @@ async def websocket_tts(websocket: WebSocket):
                                     chunk_filepath = os.path.join(chunk_save_folder, chunk_filename)
                                     try:
                                         with open(chunk_filepath, 'wb') as f:
-                                            f.write(pcm_data)
-                                        print(f"[WS-TTS] Saved {chunk_filename} ({len(pcm_data)} bytes)")
+                                            # 保存与发送给客户端相同的数据格式
+                                            if has_message_headers:
+                                                # 保存带头部的数据
+                                                header_bytes = create_header_bytes(start_time_id, message_id)
+                                                f.write(header_bytes + pcm_data)
+                                                print(f"[WS-TTS] Saved {chunk_filename} with header ({len(header_bytes + pcm_data)} bytes)")
+                                            else:
+                                                # 保存纯PCM数据
+                                                f.write(pcm_data)
+                                                print(f"[WS-TTS] Saved {chunk_filename} ({len(pcm_data)} bytes)")
                                     except Exception as save_error:
                                         print(f"[WS-TTS] Error saving chunk file: {save_error}")
                                 
@@ -708,11 +757,20 @@ async def websocket_tts(websocket: WebSocket):
                                 pcm_chunk = bytes(pcm_buffer[:target_pcm_bytes_per_chunk])
                                 pcm_buffer = pcm_buffer[target_pcm_bytes_per_chunk:]
                                 
-                                # Send PCM chunk immediately
-                                await websocket.send_bytes(pcm_chunk)
-                                send_time = (time.time() - send_start) * 1000
+                                # 根据是否有消息头部决定发送格式
+                                if has_message_headers:
+                                    # 添加消息头部到PCM数据前面
+                                    header_bytes = create_header_bytes(start_time_id, message_id)
+                                    data_to_send = header_bytes + pcm_chunk
+                                    await websocket.send_bytes(data_to_send)
+                                    print(f"[WS-TTS] 📦 PCM chunk {pcm_chunk_counter} sent with header: {len(header_bytes)} header + {len(pcm_chunk)} PCM = {len(data_to_send)} total bytes")
+                                else:
+                                    # 直接发送PCM数据
+                                    await websocket.send_bytes(pcm_chunk)
+                                    print(f"[WS-TTS] 📦 PCM chunk {pcm_chunk_counter} sent: {len(pcm_chunk)} bytes")
                                 
-                                print(f"[WS-TTS] 📦 PCM chunk {pcm_chunk_counter} sent: {len(pcm_chunk)} bytes, send time: {send_time:.2f}ms")
+                                send_time = (time.time() - send_start) * 1000
+                                print(f"[WS-TTS] Send time: {send_time:.2f}ms")
                                 
                                 # Save PCM chunk to file if requested (silence already removed)
                                 if save_audio_files and chunk_save_folder:
@@ -720,8 +778,16 @@ async def websocket_tts(websocket: WebSocket):
                                     chunk_filepath = os.path.join(chunk_save_folder, chunk_filename)
                                     try:
                                         with open(chunk_filepath, 'wb') as f:
-                                            f.write(pcm_chunk)
-                                        print(f"[WS-TTS] Saved {chunk_filename} ({len(pcm_chunk)} bytes)")
+                                            # 保存与发送给客户端相同的数据格式
+                                            if has_message_headers:
+                                                # 保存带头部的数据
+                                                header_bytes = create_header_bytes(start_time_id, message_id)
+                                                f.write(header_bytes + pcm_chunk)
+                                                print(f"[WS-TTS] Saved {chunk_filename} with header ({len(header_bytes + pcm_chunk)} bytes)")
+                                            else:
+                                                # 保存纯PCM数据
+                                                f.write(pcm_chunk)
+                                                print(f"[WS-TTS] Saved {chunk_filename} ({len(pcm_chunk)} bytes)")
                                     except Exception as save_error:
                                         print(f"[WS-TTS] Error saving chunk file: {save_error}")
                                 
@@ -798,10 +864,21 @@ async def websocket_tts(websocket: WebSocket):
                     if audio_format.lower() == "pcm":
                         # For PCM format, send remaining PCM data directly
                         remaining_pcm_data = bytes(pcm_buffer)
-                        await websocket.send_bytes(remaining_pcm_data)
+                        
+                        # 根据是否有消息头部决定发送格式
+                        if has_message_headers:
+                            # 添加消息头部到PCM数据前面
+                            header_bytes = create_header_bytes(start_time_id, message_id)
+                            data_to_send = header_bytes + remaining_pcm_data
+                            await websocket.send_bytes(data_to_send)
+                            print(f"[WS-TTS] 📦 Final PCM chunk {pcm_chunk_counter} sent with header: {len(header_bytes)} header + {len(remaining_pcm_data)} PCM = {len(data_to_send)} total bytes")
+                        else:
+                            # 直接发送PCM数据
+                            await websocket.send_bytes(remaining_pcm_data)
+                            print(f"[WS-TTS] 📦 Final PCM chunk {pcm_chunk_counter} sent: {len(remaining_pcm_data)} bytes")
                         
                         remaining_time = (time.time() - remaining_start) * 1000
-                        print(f"[WS-TTS] 📦 Final PCM chunk {pcm_chunk_counter} sent: {len(remaining_pcm_data)} bytes, process time: {remaining_time:.2f}ms")
+                        print(f"[WS-TTS] Process time: {remaining_time:.2f}ms")
                         
                         # Save final PCM chunk to file if requested
                         if save_audio_files and chunk_save_folder:
@@ -809,8 +886,16 @@ async def websocket_tts(websocket: WebSocket):
                             chunk_filepath = os.path.join(chunk_save_folder, chunk_filename)
                             try:
                                 with open(chunk_filepath, 'wb') as f:
-                                    f.write(remaining_pcm_data)
-                                print(f"[WS-TTS] Saved final {chunk_filename} ({len(remaining_pcm_data)} bytes)")
+                                    # 保存与发送给客户端相同的数据格式
+                                    if has_message_headers:
+                                        # 保存带头部的数据
+                                        header_bytes = create_header_bytes(start_time_id, message_id)
+                                        f.write(header_bytes + remaining_pcm_data)
+                                        print(f"[WS-TTS] Saved final {chunk_filename} with header ({len(header_bytes + remaining_pcm_data)} bytes)")
+                                    else:
+                                        # 保存纯PCM数据
+                                        f.write(remaining_pcm_data)
+                                        print(f"[WS-TTS] Saved final {chunk_filename} ({len(remaining_pcm_data)} bytes)")
                             except Exception as save_error:
                                 print(f"[WS-TTS] Error saving final chunk file: {save_error}")
                         
@@ -859,6 +944,10 @@ async def websocket_tts(websocket: WebSocket):
                 print(f"[WS-TTS] 📋   Audio Format: {audio_format}")
                 print(f"[WS-TTS] 📋   Sample Rate: {output_sample_rate} Hz")
                 print(f"[WS-TTS] 📋   Speaker ID: {speaker_id}")
+                print(f"[WS-TTS] 📋   Message Headers: {'Yes' if has_message_headers else 'No'}")
+                if has_message_headers:
+                    print(f"[WS-TTS] 📋   StartTimeId: {start_time_id}")
+                    print(f"[WS-TTS] 📋   MessageId: {message_id}")
                 print(f"[WS-TTS] 📋   Total Generation Time: {generation_time:.2f}s")
                 
                 # Add first chunk timing summary
@@ -880,8 +969,16 @@ async def websocket_tts(websocket: WebSocket):
                         print(f"[WS-TTS] Saved {mp3_chunk_counter} MP3 chunk files to {chunk_save_folder}")
                 
                 # Send an empty chunk to signal completion (for both MP3 and PCM)
-                await websocket.send_bytes(b'')
-                print(f"[WS-TTS] 📡 Empty completion chunk sent for {audio_format.upper()} format")
+                if has_message_headers:
+                    # 发送空的完成信号时也要添加消息头部
+                    header_bytes = create_header_bytes(start_time_id, message_id)
+                    completion_signal = header_bytes + b''
+                    await websocket.send_bytes(completion_signal)
+                    print(f"[WS-TTS] 📡 Empty completion chunk sent with header for {audio_format.upper()} format")
+                else:
+                    # 标准的空完成信号
+                    await websocket.send_bytes(b'')
+                    print(f"[WS-TTS] 📡 Empty completion chunk sent for {audio_format.upper()} format")
                 
             except Exception as inference_error:
                 print(f"Inference error: {str(inference_error)}")
