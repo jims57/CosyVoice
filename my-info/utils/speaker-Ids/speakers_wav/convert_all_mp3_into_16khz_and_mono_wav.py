@@ -1,12 +1,12 @@
 """
-WAV File Converter - Convert all WAV files to 16kHz mono format
+MP3 to WAV File Converter - Convert all MP3 files to 16kHz mono WAV format
 
 USAGE INSTRUCTIONS:
 ===================
 
 1. PERMISSION SETTING:
    Make the script executable (optional):
-   chmod +x convert_all_wavs_into_16khz_and_mono_wav.py
+   chmod +x convert_all_mp3_into_16khz_and_mono_wav.py
 
 2. PACKAGE INSTALLATION:
    Install required dependencies:
@@ -18,37 +18,35 @@ USAGE INSTRUCTIONS:
    - On Windows: Download ffmpeg and add to PATH
 
 3. USAGE:
-   Navigate to the directory containing WAV files and run:
-   python convert_all_wavs_into_16khz_and_mono_wav.py
+   Navigate to the directory containing MP3 files and run:
+   python convert_all_mp3_into_16khz_and_mono_wav.py
    
    OR run from any directory:
    cd /path/to/speakers_wav
-   python convert_all_wavs_into_16khz_and_mono_wav.py
+   python convert_all_mp3_into_16khz_and_mono_wav.py
 
 4. WHAT IT DOES:
-   - Finds all .wav files in the current directory
-   - Checks if each file is already 16kHz mono
-   - Skips files that are already in correct format (saves time)
-   - Converts files to 16kHz mono if needed
-   - Replaces original files with converted versions
+   - Finds all .mp3 files in the current directory
+   - Converts each MP3 file to 16kHz mono WAV format
+   - Replaces original MP3 files with converted WAV files
    - Provides detailed logging of all operations
 
 5. EXAMPLE OUTPUT:
-   Found 2 WAV file(s) to process:
-     - speakerId-1.wav
-     - speakerId-2.wav
+   Found 2 MP3 file(s) to process:
+     - speakerId-1.mp3
+     - speakerId-2.mp3
    
    Processing files...
-   Checking speakerId-1.wav: 44100Hz, 2 channel(s)
-     → Converting to 16kHz mono...
+   Checking speakerId-1.mp3: 44100Hz, 2 channel(s)
+     → Converting to 16kHz mono WAV...
        Converted from 2 channels to mono
        Resampled from 44100Hz to 16000Hz
      ✓ Converted and saved to speakerId-1.wav
 
 6. SAFETY NOTES:
-   - This script OVERWRITES original files
-   - Make backups if you need to preserve original files
-   - Script will skip files that are already 16kHz mono
+   - This script converts MP3 files to WAV and DELETES original MP3 files
+   - Make backups if you need to preserve original MP3 files
+   - Converted files will have .wav extension
 """
 
 import os
@@ -94,8 +92,8 @@ def convert_mp3_to_16khz_mono_wav(mp3_path):
         print(f"  ✗ Error converting {os.path.basename(mp3_path)}: {e}")
 
 def main():
-    # Get current directory (speakers_wav folder)
-    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Get current working directory (where script is being run from)
+    current_dir = os.getcwd()
     
     # Find all .mp3 files in the directory
     mp3_files = glob.glob(os.path.join(current_dir, "*.mp3"))
