@@ -612,6 +612,86 @@ async def websocket_tts(websocket: WebSocket):
                 text_norm_time = (time.time() - text_norm_start) * 1000
                 print(f"[WS-TTS] 📝 Text normalization time: {text_norm_time:.2f}ms, got {len(normalized_text_chunks)} chunks")
                 
+                # ====== ADD: TEXT SPLITTING BY PUNCTUATION LOGIC FROM MELO-API ======
+                # Define punctuation markers for all supported languages
+                punctuation_markers = [
+                    # English
+                    '.', '!', '?', ';', ',', ':',
+                    # Spanish
+                    '¡', '¿',
+                    # French
+                    '«', '»',
+                    # Chinese
+                    '。', '！', '？', '；', '，', '：', '、',
+                    # Japanese  
+                    # Korean (uses mostly English punctuation)
+                ]
+                
+                # Function to split text by punctuation while keeping the punctuation
+                def split_by_punctuation(text):
+                    segments = []
+                    current_segment = ""
+                    
+                    for char in text:
+                        current_segment += char
+                        if char in punctuation_markers:
+                            if current_segment.strip():  # Only add non-empty segments
+                                segments.append(current_segment.strip())
+                            current_segment = ""
+                    
+                    # Add any remaining text
+                    if current_segment.strip():
+                        segments.append(current_segment.strip())
+                    
+                    # If we have no splits (no punctuation in text), use the whole text
+                    if not segments:
+                        segments = [text]
+                    
+                    # For Chinese text, ensure first segment isn't too long for fast response
+                    # Note: We don't have language detection here, so we'll check if text contains Chinese characters
+                    contains_chinese = any('\u4e00' <= char <= '\u9fff' for char in text)
+                    if contains_chinese and segments and len(segments[0]) > 25:
+                        # Extract a shorter first segment if it's Chinese and too long
+                        # This helps get the first audio chunk to the client faster
+                        first_part = segments[0][:25]
+                        rest_part = segments[0][25:]
+                        segments[0] = first_part
+                        # Only insert the rest if it's not empty
+                        if rest_part.strip():
+                            segments.insert(1, rest_part)
+                    
+                    # Combine very short segments with the next segment for better quality
+                    combined_segments = []
+                    current_combined = ""
+                    
+                    for segment in segments:
+                        # If current segment is short (less than 5 chars) or current_combined is empty
+                        if len(segment) < 5 or not current_combined:
+                            current_combined += " " + segment if current_combined else segment
+                        else:
+                            combined_segments.append(current_combined)
+                            current_combined = segment
+                    
+                    # Add the last combined segment if it exists
+                    if current_combined:
+                        combined_segments.append(current_combined)
+                    
+                    return combined_segments
+                
+                # Apply punctuation splitting to each normalized text chunk
+                final_text_chunks = []
+                for norm_chunk in normalized_text_chunks:
+                    punctuation_split_chunks = split_by_punctuation(norm_chunk)
+                    final_text_chunks.extend(punctuation_split_chunks)
+                
+                # Replace the normalized_text_chunks with the punctuation-split chunks
+                normalized_text_chunks = final_text_chunks
+                
+                print(f"[WS-TTS] 📝 After punctuation splitting: {len(normalized_text_chunks)} final text chunks")
+                for i, chunk in enumerate(normalized_text_chunks):
+                    print(f"[WS-TTS] Final chunk {i+1}: {chunk[:50]}{'...' if len(chunk) > 50 else ''}")
+                # =====================================================================
+                
                 # Process all text chunks to stay within TRT limits
                 for chunk_idx, text_chunk in enumerate(normalized_text_chunks):
                     print(f"[WS-TTS] 🔄 Processing text chunk {chunk_idx + 1}/{len(normalized_text_chunks)}: {text_chunk[:50]}...")
@@ -1026,6 +1106,248 @@ async def generate_tts(request: TTSRequest):
         media_type=media_type,
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+@app.websocket("/tts-test")
+async def websocket_tts_test(websocket: WebSocket):
+    """
+    Simplified TTS test endpoint to isolate CosyVoice generation issues
+    """
+    await websocket.accept()
+    print(f"[TTS-TEST] WebSocket connection established")
+    
+    # Check X-API-Key header for authorization
+    api_key = websocket.headers.get("x-api-key")
+    if not api_key or api_key not in VALID_API_KEYS:
+        print(f"[TTS-TEST] Unauthorized access attempt with API key: {api_key}")
+        await websocket.send_text(json.dumps({"error": "Unauthorized: Invalid or missing X-API-Key header"}))
+        await websocket.close(code=4001, reason="Unauthorized")
+        return
+    
+    print(f"[TTS-TEST] Authorized connection with valid API key")
+    
+    try:
+        while True:
+            # Receive TTS request from client
+            data = await websocket.receive_text()
+            request_data = json.loads(data)
+            
+            # ====== FIX: FORCE DETERMINISTIC BEHAVIOR ======
+            # Set seeds for reproducible results
+            torch.manual_seed(42)
+            np.random.seed(42)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed(42)
+                torch.cuda.manual_seed_all(42)
+                # Clear GPU cache and synchronize
+                torch.cuda.empty_cache()
+                torch.cuda.synchronize()
+            
+            # Force deterministic CUDNN behavior
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+            print(f"[TTS-TEST] Set deterministic seeds and GPU state")
+            # ===============================================
+            
+            # Start timing
+            start_time = time.time()
+            print(f"[TTS-TEST] ===== NEW REQUEST START =====")
+            print(f"[TTS-TEST] Request received at: {time.strftime('%H:%M:%S.%f')[:-3]}")
+            print(f"[TTS-TEST] Request data: {request_data}")
+            
+            # Extract parameters
+            text = request_data.get("text", "")
+            speaker_id = request_data.get("speakerId", 1)
+            save_audio_files = request_data.get("saveAudioFiles", False)
+            output_sample_rate = request_data.get("outputSampleRate", 16000)
+            audio_format = request_data.get("audioFormat", "pcm")
+            
+            if not text:
+                await websocket.send_text(json.dumps({"error": "Text is required"}))
+                continue
+            
+            if global_cosyvoice is None:
+                await websocket.send_text(json.dumps({"error": "Model not initialized"}))
+                continue
+            
+            print(f"[TTS-TEST] Parameters - Text length: {len(text)} chars, Speaker: {speaker_id}, Format: {audio_format}, Sample rate: {output_sample_rate}")
+            
+            # Load speaker data
+            try:
+                speaker_data = load_and_cache_speaker(speaker_id)
+                print(f"[TTS-TEST] Speaker {speaker_id} loaded successfully")
+            except Exception as e:
+                error_msg = f"Failed to load speaker {speaker_id}: {str(e)}"
+                print(f"[TTS-TEST] ERROR: {error_msg}")
+                await websocket.send_text(json.dumps({"error": error_msg}))
+                continue
+            
+            # Setup save folder if requested
+            chunk_save_folder = None
+            if save_audio_files:
+                chunk_save_folder = os.path.join(os.path.dirname(__file__), "tts_test_chunks")
+                os.makedirs(chunk_save_folder, exist_ok=True)
+                print(f"[TTS-TEST] Created save folder: {chunk_save_folder}")
+            
+            # ====== FIX: FORCE CONSISTENT TEXT PROCESSING ======
+            # Use split=False to ensure consistent text chunking
+            print(f"[TTS-TEST] Starting text normalization...")
+            text_norm_start = time.time()
+            normalized_text_chunks = global_cosyvoice.frontend.text_normalize(text, split=False, text_frontend=False)
+            # Convert to list if it returns a string
+            if isinstance(normalized_text_chunks, str):
+                normalized_text_chunks = [normalized_text_chunks]
+            text_norm_time = (time.time() - text_norm_start) * 1000
+            print(f"[TTS-TEST] FORCED CONSISTENT text normalization (split=False) completed in {text_norm_time:.2f}ms")
+            # ===================================================
+            
+            print(f"[TTS-TEST] Normalized into {len(normalized_text_chunks)} text chunks")
+            for i, chunk in enumerate(normalized_text_chunks):
+                print(f"[TTS-TEST] Text chunk {i+1}: {chunk[:100]}..." if len(chunk) > 100 else f"[TTS-TEST] Text chunk {i+1}: {chunk}")
+            
+            # Initialize counters
+            total_audio_chunks_generated = 0
+            total_pcm_files_saved = 0
+            
+            # Process each text chunk
+            for text_chunk_idx, text_chunk in enumerate(normalized_text_chunks):
+                print(f"[TTS-TEST] ----- Processing text chunk {text_chunk_idx + 1}/{len(normalized_text_chunks)} -----")
+                print(f"[TTS-TEST] Text chunk content: {text_chunk}")
+                
+                # ====== FIX: FORCE GPU SYNC BEFORE EACH TEXT CHUNK ======
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                print(f"[TTS-TEST] GPU synchronized before text chunk {text_chunk_idx + 1}")
+                # ========================================================
+                
+                # Start inference for this text chunk
+                inference_start = time.time()
+                print(f"[TTS-TEST] Starting inference for text chunk {text_chunk_idx + 1}")
+                
+                try:
+                    # Generate audio using CosyVoice - SIMPLIFIED, NO ASYNC COMPLICATIONS
+                    audio_chunks_from_this_text = []
+                    
+                    # ====== FIX: EXPLICIT GENERATOR CONSUMPTION ======
+                    print(f"[TTS-TEST] Creating inference generator...")
+                    inference_generator = global_cosyvoice.inference_zero_shot(
+                        text_chunk, 
+                        speaker_data['normalized_prompt_text'], 
+                        speaker_data['prompt_speech_16k'], 
+                        zero_shot_spk_id=speaker_data['cache_key'], 
+                        stream=True
+                    )
+                    print(f"[TTS-TEST] Generator created, starting iteration...")
+                    
+                    # Explicitly consume the entire generator
+                    try:
+                        for audio_chunk_idx, audio_result in enumerate(inference_generator):
+                            chunk_gen_time = time.time()
+                            total_audio_chunks_generated += 1
+                            
+                            print(f"[TTS-TEST] Generated audio chunk {audio_chunk_idx + 1} from text chunk {text_chunk_idx + 1}")
+                            print(f"[TTS-TEST] Total audio chunks so far: {total_audio_chunks_generated}")
+                            print(f"[TTS-TEST] Audio chunk generation time: {(chunk_gen_time - inference_start) * 1000:.2f}ms")
+                            
+                            # ====== FIX: FORCE GPU SYNC AFTER EACH CHUNK ======
+                            if torch.cuda.is_available():
+                                torch.cuda.synchronize()
+                            # ==================================================
+                            
+                            # Get audio tensor
+                            audio_tensor = audio_result['tts_speech']
+                            print(f"[TTS-TEST] Audio tensor shape: {audio_tensor.shape}")
+                            
+                            # Resample if needed
+                            if global_cosyvoice.sample_rate != output_sample_rate:
+                                resample_start = time.time()
+                                audio_tensor = torchaudio.functional.resample(
+                                    audio_tensor, 
+                                    global_cosyvoice.sample_rate, 
+                                    output_sample_rate
+                                )
+                                resample_time = (time.time() - resample_start) * 1000
+                                print(f"[TTS-TEST] Resampled from {global_cosyvoice.sample_rate}Hz to {output_sample_rate}Hz in {resample_time:.2f}ms")
+                            
+                            # Convert to PCM
+                            audio_np = audio_tensor.numpy()
+                            if audio_np.max() > 1.0 or audio_np.min() < -1.0:
+                                audio_np = audio_np / max(abs(audio_np.max()), abs(audio_np.min()))
+                            pcm_data = (audio_np * 32767).astype(np.int16).tobytes()
+                            
+                            print(f"[TTS-TEST] Converted to PCM: {len(pcm_data)} bytes")
+                            
+                            # Save PCM file if requested
+                            if save_audio_files and chunk_save_folder:
+                                pcm_filename = f"test_chunk_{total_pcm_files_saved:03d}.pcm"
+                                pcm_filepath = os.path.join(chunk_save_folder, pcm_filename)
+                                
+                                try:
+                                    with open(pcm_filepath, 'wb') as f:
+                                        f.write(pcm_data)
+                                    total_pcm_files_saved += 1
+                                    print(f"[TTS-TEST] Saved PCM file: {pcm_filename} ({len(pcm_data)} bytes)")
+                                except Exception as save_error:
+                                    print(f"[TTS-TEST] ERROR saving PCM file: {save_error}")
+                            
+                            audio_chunks_from_this_text.append(pcm_data)
+                        
+                        print(f"[TTS-TEST] Generator iteration completed normally")
+                        
+                    except StopIteration:
+                        print(f"[TTS-TEST] Generator exhausted via StopIteration")
+                    except Exception as gen_error:
+                        print(f"[TTS-TEST] ERROR during generator iteration: {gen_error}")
+                        import traceback
+                        print(f"[TTS-TEST] Generator error traceback: {traceback.format_exc()}")
+                    # =================================================
+                    
+                    inference_time = (time.time() - inference_start) * 1000
+                    print(f"[TTS-TEST] Text chunk {text_chunk_idx + 1} inference completed in {inference_time:.2f}ms")
+                    print(f"[TTS-TEST] Generated {len(audio_chunks_from_this_text)} audio chunks from text chunk {text_chunk_idx + 1}")
+                    
+                except Exception as inference_error:
+                    error_msg = f"Inference error for text chunk {text_chunk_idx + 1}: {str(inference_error)}"
+                    print(f"[TTS-TEST] ERROR: {error_msg}")
+                    import traceback
+                    print(f"[TTS-TEST] Traceback: {traceback.format_exc()}")
+                    await websocket.send_text(json.dumps({"error": error_msg}))
+                    break
+            
+            # Final summary
+            total_time = (time.time() - start_time) * 1000
+            print(f"[TTS-TEST] ===== REQUEST SUMMARY =====")
+            print(f"[TTS-TEST] Total processing time: {total_time:.2f}ms")
+            print(f"[TTS-TEST] Text chunks processed: {len(normalized_text_chunks)}")
+            print(f"[TTS-TEST] Total audio chunks generated: {total_audio_chunks_generated}")
+            print(f"[TTS-TEST] Total PCM files saved: {total_pcm_files_saved}")
+            print(f"[TTS-TEST] Audio format: {audio_format}")
+            print(f"[TTS-TEST] Sample rate: {output_sample_rate}Hz")
+            print(f"[TTS-TEST] Speaker ID: {speaker_id}")
+            print(f"[TTS-TEST] ===== REQUEST COMPLETE =====")
+            
+            # Send completion response
+            response = {
+                "status": "completed",
+                "totalAudioChunks": total_audio_chunks_generated,
+                "totalPcmFiles": total_pcm_files_saved,
+                "textChunks": len(normalized_text_chunks),
+                "processingTimeMs": total_time,
+                "audioFormat": audio_format,
+                "sampleRate": output_sample_rate,
+                "speakerId": speaker_id
+            }
+            await websocket.send_text(json.dumps(response))
+            
+    except WebSocketDisconnect:
+        print(f"[TTS-TEST] WebSocket connection disconnected")
+    except Exception as e:
+        print(f"[TTS-TEST] WebSocket error: {str(e)}")
+        import traceback
+        print(f"[TTS-TEST] Traceback: {traceback.format_exc()}")
+        try:
+            await websocket.send_text(json.dumps({"error": f"WebSocket error: {str(e)}"}))
+        except:
+            pass
 
 # Initialize model on startup
 @app.on_event("startup")

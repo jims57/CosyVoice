@@ -1,0 +1,19 @@
+   
+   # If i post this, all audio data(9 pcm files) can be generated successfully, and i can hear the all audio data like the content in text field
+   {
+     "text": "Life, in its myriad forms, flourishes across the globe, adapting to diverse environments and constantly evolving in response to the ever-shifting conditions.",
+     "audioFormat":"pcm",
+     "speakerId":16,
+     "saveAudioFiles":true,
+     "outputSampleRate":16000
+   }
+
+
+# If i post this, it will all audio data(9 pcm files) can be generated successfully, and i can hear the all audio data like the content in text field
+   {
+     "text": "From the smallest subatomic particle to the vast expanse of galaxies, everything is interconnected in a delicate dance of cause and effect. Life, in its myriad forms, flourishes across the globe, adapting to diverse environments and constantly evolving in response to the ever-shifting conditions.",
+     "audioFormat":"pcm",
+     "speakerId":16,
+     "saveAudioFiles":true,
+     "outputSampleRate":16000
+   }

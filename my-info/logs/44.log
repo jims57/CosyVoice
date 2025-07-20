@@ -1,0 +1,29 @@
+2025-07-20 08:46:02,053 INFO yield speech len 1.0, rtf 0.43952083587646484      06ms  rence
+[WS-TTS] 🔄 Resampled chunk 18: 0.58ms (24000 → 16000 Hz)
+[WS-TTS] 🎵 Audio to PCM conversion time: 0.69ms, PCM buffer size: 32000 bytes
+[WS-TTS] 📦 PCM chunk 17 sent: 32000 bytes
+[WS-TTS] Send time: 1.70ms
+[WS-TTS] Saved chunk_17.pcm (32000 bytes)
+[WS-TTS] 📊 Audio chunk 18 (text chunk 1) processed in 2.84ms, total time: 5979.e infe17ms
+2025-07-20 08:46:02,403 INFO yield speech len 0.96, rtf 0.3615607817967733
+[WS-TTS] 🔄 Resampled chunk 19: 0.51ms (24000 → 16000 Hz)
+[WS-TTS] 🎵 Audio to PCM conversion time: 0.62ms, PCM buffer size: 30720 bytes
+[WS-TTS] 📊 Audio chunk 19 (text chunk 1) processed in 0.65ms, total time: 6327.06ms
+100%|█████████████████████████████████████████████| 1/1 [00:06<00:00,  6.38s/it]
+[WS-TTS] 🔄 Processing remaining PCM data: 30720 bytes
+[WS-TTS] 📦 Final PCM chunk 18 sent: 30720 bytes                                      668af: ~
+[WS-TTS] Process time: 1.26ms
+[WS-TTS] Saved final chunk_18.pcm (30720 bytes)
+[WS-TTS] ✅ Time after inference: 6389.08 ms since start, 6388.66 ms since before inference
+[WS-TTS] 🏁 Audio generated in 6.39 seconds
+[WS-TTS] 📋 REQUEST SUMMARY:
+[WS-TTS] 📋   Audio Format: pcm                                                 8:46 2
+[WS-TTS] 📋   Sample Rate: 16000 Hz
+[WS-TTS] 📋   Speaker ID: 2
+[WS-TTS] 📋   Message Headers: No
+[WS-TTS] 📋   Total Generation Time: 6.39s
+[WS-TTS] 📋   First Chunk Inference Time: 358.89ms
+[WS-TTS] 📋   First Chunk Since Request: 359.34ms
+[WS-TTS] 📋   First Chunk Sent Since Request: 369.60ms
+[WS-TTS] 📊 Total PCM chunks sent: 19
+[WS-TTS] Saved 19 PCM chunk files to /root/CosyVoice/cosy_mp3_chunks

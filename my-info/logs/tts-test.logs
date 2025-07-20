@@ -1,0 +1,61 @@
+# this is parts of last logs in the first time request to /tts-test websocket:
+[TTS-TEST] Audio tensor shape: torch.Size([1, 24000])
+[TTS-TEST] Resampled from 24000Hz to 16000Hz in 0.59ms
+[TTS-TEST] Converted to PCM: 32000 bytes
+[TTS-TEST] Saved PCM file: test_chunk_014.pcm (32000 bytes)
+100%|████████████████████████████████████████████████████████████████████████████████| 1/1 [00:04<00:00,  4.37s/it]
+[TTS-TEST] Text chunk 1 inference completed in 4375.53ms
+[TTS-TEST] Generated 15 audio chunks from text chunk 1
+[TTS-TEST] ===== REQUEST SUMMARY =====
+[TTS-TEST] Total processing time: 5329.72ms
+[TTS-TEST] Text chunks processed: 1
+[TTS-TEST] Total audio chunks generated: 15
+[TTS-TEST] Total PCM files saved: 15
+[TTS-TEST] Audio format: pcm
+[TTS-TEST] Sample rate: 16000Hz
+[TTS-TEST] Speaker ID: 16
+[TTS-TEST] ===== REQUEST COMPLETE =====
+
+# this is parts of last logs in the 2nd time request to /tts-test websocket:
+[TTS-TEST] Saved PCM file: test_chunk_012.pcm (32000 bytes)
+2025-07-20 14:14:58,549 INFO yield speech len 0.84, rtf 0.35231964928763254
+[TTS-TEST] Generated audio chunk 14 from text chunk 1
+[TTS-TEST] Audio chunk generation time: 3762.64ms
+[TTS-TEST] Audio tensor shape: torch.Size([1, 20160])
+[rank0]:[W720 14:14:58.573362309 NNPACK.cpp:57] Could not initialize NNPACK! Reason: Unsupported hardware.
+[TTS-TEST] Resampled from 24000Hz to 16000Hz in 0.89ms
+[TTS-TEST] Converted to PCM: 26880 bytes
+[TTS-TEST] Saved PCM file: test_chunk_013.pcm (26880 bytes)
+100%|████████████████████████████████████████████████████████████████████████████████| 1/1 [00:03<00:00,  3.79s/it]
+[TTS-TEST] Text chunk 1 inference completed in 3797.50ms
+[TTS-TEST] Generated 14 audio chunks from text chunk 1
+[TTS-TEST] ===== REQUEST SUMMARY =====
+[TTS-TEST] Total processing time: 3797.80ms
+[TTS-TEST] Text chunks processed: 1
+[TTS-TEST] Total audio chunks generated: 14
+[TTS-TEST] Total PCM files saved: 14
+[TTS-TEST] Audio format: pcm
+[TTS-TEST] Sample rate: 16000Hz
+[TTS-TEST] Speaker ID: 16
+
+
+
+# this is parts of last logs in the 3rd time request to /tts-test websocket:
+[TTS-TEST] Generated audio chunk 17 from text chunk 1
+[TTS-TEST] Audio chunk generation time: 5031.95ms
+[TTS-TEST] Audio tensor shape: torch.Size([1, 8640])
+[rank0]:[W720 14:15:34.251066796 NNPACK.cpp:57] Could not initialize NNPACK! Reason: Unsupported hardware.
+[TTS-TEST] Resampled from 24000Hz to 16000Hz in 21.12ms
+[TTS-TEST] Converted to PCM: 11520 bytes
+[TTS-TEST] Saved PCM file: test_chunk_016.pcm (11520 bytes)
+100%|████████████████████████████████████████████████████████████████████████████████| 1/1 [00:05<00:00,  5.09s/it]
+[TTS-TEST] Text chunk 1 inference completed in 5098.50ms
+[TTS-TEST] Generated 17 audio chunks from text chunk 1
+[TTS-TEST] ===== REQUEST SUMMARY =====
+[TTS-TEST] Total processing time: 5099.03ms
+[TTS-TEST] Text chunks processed: 1
+[TTS-TEST] Total audio chunks generated: 17
+[TTS-TEST] Total PCM files saved: 17
+[TTS-TEST] Audio format: pcm
+[TTS-TEST] Sample rate: 16000Hz
+[TTS-TEST] Speaker ID: 16

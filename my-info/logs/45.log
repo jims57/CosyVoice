@@ -1,0 +1,13 @@
+INFO 07-20 14:01:33 [model_runner.py:1170] Starting to load model pretrained_models/CosyVoice2-0.5B/vllm...
+Loading safetensors checkpoint shards:   0% Completed | 0/1 [00:00<?, ?it/s]
+Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:00<00:00,  9.59it/s]
+Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:00<00:00,  9.58it/s]
+
+INFO 07-20 14:01:33 [default_loader.py:280] Loading weights took 0.12 seconds
+INFO 07-20 14:01:34 [model_runner.py:1202] Model loading took 0.6951 GiB and 0.195566 seconds
+INFO 07-20 14:01:35 [worker.py:291] Memory profiling takes 0.71 seconds
+INFO 07-20 14:01:35 [worker.py:291] the current vLLM instance can use total_gpu_memory (23.65GiB) x gpu_memory_utilization (0.20) = 4.73GiB
+INFO 07-20 14:01:35 [worker.py:291] model weights take 0.70GiB; non_torch_memory takes 0.08GiB; PyTorch activation peak memory takes 1.12GiB; the rest of the memory reserved for KV Cache is 2.84GiB.
+INFO 07-20 14:01:35 [executor_base.py:112] # cuda blocks: 15513, # CPU blocks: 21845
+INFO 07-20 14:01:35 [executor_base.py:117] Maximum concurrency for 32768 tokens per request: 7.57x
+INFO 07-20 14:01:38 [model_runner.py:1512] Capturing cudagraphs for decoding. This may lead to unexpected consequences if the model is not static. To run the model in eager mode, set 'enforce_eager=True' or use '--enforce-eager' in the CLI. If out-of-memory error occurs during cudagraph capture, consider decreasing `gpu_memory_utilization` or switching to eager mode. You can also reduce the `max_num_seqs` as needed to decrease memory usage.
