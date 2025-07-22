@@ -84,6 +84,7 @@ from cosyvoice.utils.file_utils import load_wav
 import subprocess
 import threading
 from queue import Queue
+import requests  # Add this import for HTTP requests
 
 # Valid API Keys for WebSocket authentication
 VALID_API_KEYS = {
@@ -92,6 +93,9 @@ VALID_API_KEYS = {
     "sk-9m8n7b6v5c4x3z2a1s0d9f8g7h6j5k4l3p2o1i0u",
     "sk-7u6y5t4r3e2w1q0a9s8d7f6g5h4j3k2l1z0x9c8v"
 }
+
+# Add configurable domain at the top of the file
+TTS_CLONE_DOMAIN = "http://tts-clone.watchfun.cn"  # Configurable domain
 
 # API model for TTS request
 class TTSRequest(BaseModel):
@@ -271,56 +275,148 @@ def generate_audio_chunks(text, request_start_time, audio_format):
         yield b"Error: TTS generation failed"
 
 def load_and_cache_speaker(speaker_id):
-    """Load and cache speaker data for given speakerId"""
+    """Load and cache speaker data for given speakerId (supports both integer and 32-bit MD5 string)"""
     global speaker_cache
     
-    if speaker_id in speaker_cache:
-        print(f"[Speaker Cache] Using cached speaker {speaker_id}")
-        return speaker_cache[speaker_id]
+    # Convert speaker_id to string for consistent handling
+    speaker_id_str = str(speaker_id)
     
-    print(f"[Speaker Cache] Loading new speaker {speaker_id}")
+    # Validate speaker_id type
+    if isinstance(speaker_id, int) or (isinstance(speaker_id, str) and speaker_id.isdigit()):
+        # Integer type speakerId - use existing logic
+        speaker_type = "integer"
+        actual_speaker_id = int(speaker_id)
+        cache_key = actual_speaker_id
+    elif isinstance(speaker_id, str) and len(speaker_id) == 32 and all(c in "0123456789abcdef" for c in speaker_id.lower()):
+        # 32-bit MD5 string type speakerId - use new logic
+        speaker_type = "md5"
+        actual_speaker_id = speaker_id.lower()
+        cache_key = actual_speaker_id
+    else:
+        # Invalid type
+        raise ValueError({
+            "errorCode": 400,
+            "message": f"Invalid speaker_id format. Must be integer or 32-character MD5 string, got: {speaker_id}"
+        })
     
-    # Load speaker audio file from speaker-specific folder
-    speaker_wav_path = f'./asset/speakerId-{speaker_id}/speakerId-{speaker_id}.wav'
-    speaker_txt_path = f'./asset/speakerId-{speaker_id}/speakerId-{speaker_id}.txt'
+    if cache_key in speaker_cache:
+        print(f"[Speaker Cache] Using cached speaker {cache_key} (type: {speaker_type})")
+        return speaker_cache[cache_key]
+    
+    print(f"[Speaker Cache] Loading new speaker {cache_key} (type: {speaker_type})")
     
     try:
-        prompt_speech_16k = load_wav(speaker_wav_path, 16000)
-        
-        # Read prompt text from corresponding txt file
-        with open(speaker_txt_path, 'r', encoding='utf-8') as f:
-            prompt_text = f.read().strip()
-        
-        print(f"[Speaker Cache] Loaded prompt text for speaker {speaker_id}: {prompt_text[:50]}...")
+        if speaker_type == "integer":
+            # Existing logic for integer speakerId
+            speaker_wav_path = f'./asset/speakerId-{actual_speaker_id}/speakerId-{actual_speaker_id}.wav'
+            speaker_txt_path = f'./asset/speakerId-{actual_speaker_id}/speakerId-{actual_speaker_id}.txt'
+            
+            prompt_speech_16k = load_wav(speaker_wav_path, 16000)
+            
+            # Read prompt text from corresponding txt file
+            with open(speaker_txt_path, 'r', encoding='utf-8') as f:
+                prompt_text = f.read().strip()
+            
+            print(f"[Speaker Cache] Loaded prompt text for speaker {actual_speaker_id}: {prompt_text[:50]}...")
+            
+        elif speaker_type == "md5":
+            # New logic for MD5 string speakerId
+            try:
+                # Get speaker info from TTS clone service
+                speaker_info_url = f"{TTS_CLONE_DOMAIN}/getSpeakerInfo/{actual_speaker_id}"
+                print(f"[Speaker Cache] Fetching speaker info from: {speaker_info_url}")
+                
+                response = requests.get(speaker_info_url, timeout=10)
+                response.raise_for_status()
+                
+                speaker_info = response.json()
+                
+                # Check if response is successful
+                if speaker_info.get("errorCode") != 0:
+                    raise ValueError({
+                        "errorCode": speaker_info.get("errorCode", 500),
+                        "message": speaker_info.get("message", "Failed to get speaker info")
+                    })
+                
+                # Get WAV URL and text from response
+                wav_url = speaker_info.get("wavUrl")
+                prompt_text = speaker_info.get("text")
+                
+                if not wav_url or not prompt_text:
+                    raise ValueError({
+                        "errorCode": 500,
+                        "message": "Invalid speaker info response: missing wavUrl or text"
+                    })
+                
+                print(f"[Speaker Cache] Got WAV URL: {wav_url}")
+                print(f"[Speaker Cache] Got prompt text: {prompt_text[:50]}...")
+                
+                # Download WAV file
+                print(f"[Speaker Cache] Downloading WAV file from: {wav_url}")
+                wav_response = requests.get(wav_url, timeout=30)
+                wav_response.raise_for_status()
+                
+                # Save WAV to temporary file and load
+                import tempfile
+                with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_wav:
+                    temp_wav.write(wav_response.content)
+                    temp_wav_path = temp_wav.name
+                
+                # Load WAV file
+                prompt_speech_16k = load_wav(temp_wav_path, 16000)
+                
+                # Clean up temporary file
+                os.unlink(temp_wav_path)
+                
+                print(f"[Speaker Cache] Successfully loaded WAV file for MD5 speaker {actual_speaker_id}")
+                
+            except requests.RequestException as e:
+                raise ValueError({
+                    "errorCode": 500,
+                    "message": f"Failed to fetch speaker data from TTS clone service: {str(e)}"
+                })
+            except Exception as e:
+                raise ValueError({
+                    "errorCode": 500,
+                    "message": f"Failed to process MD5 speaker data: {str(e)}"
+                })
         
         # Pre-normalize the prompt text
         normalized_prompt_text = global_cosyvoice.frontend.text_normalize(prompt_text, split=False, text_frontend=True)
         
         # Pre-compute and cache speaker in CosyVoice
-        cache_key = f'cached_prompt_spk_{speaker_id}'
-        global_cosyvoice.add_zero_shot_spk(prompt_text, prompt_speech_16k, cache_key)
+        cosyvoice_cache_key = f'cached_prompt_spk_{cache_key}'
+        global_cosyvoice.add_zero_shot_spk(prompt_text, prompt_speech_16k, cosyvoice_cache_key)
         
         # Cache speaker data
         speaker_data = {
             'prompt_speech_16k': prompt_speech_16k,
             'prompt_text': prompt_text,
             'normalized_prompt_text': normalized_prompt_text,
-            'cache_key': cache_key
+            'cache_key': cosyvoice_cache_key,
+            'speaker_type': speaker_type,
+            'original_speaker_id': speaker_id
         }
         
-        speaker_cache[speaker_id] = speaker_data
-        print(f"[Speaker Cache] Cached speaker {speaker_id} with key {cache_key}")
+        speaker_cache[cache_key] = speaker_data
+        print(f"[Speaker Cache] Cached speaker {cache_key} with key {cosyvoice_cache_key}")
         
         return speaker_data
         
+    except ValueError as ve:
+        # Re-raise ValueError with error dict
+        raise ve
     except Exception as e:
         print(f"[Speaker Cache] Error loading speaker {speaker_id}: {e}")
-        # Fallback to default speaker (speakerId 1)
-        if speaker_id != 1:
+        # Fallback to default speaker (speakerId 1) only for integer types
+        if speaker_type == "integer" and actual_speaker_id != 1:
             print(f"[Speaker Cache] Falling back to default speaker 1")
             return load_and_cache_speaker(1)
         else:
-            raise e
+            raise ValueError({
+                "errorCode": 500,
+                "message": f"Failed to load speaker {speaker_id}: {str(e)}"
+            })
 
 @app.api_route("/", methods=["GET", "HEAD"])
 async def root():
@@ -404,7 +500,7 @@ async def websocket_tts(websocket: WebSocket):
             
             # Extract parameters with defaults
             text = request_data.get("text", "")
-            speaker_id = request_data.get("speakerId", 1)  # Default to speakerId 1
+            speaker_id = request_data.get("speakerId", 1)  # Can be int or MD5 string
             save_audio_files = request_data.get("saveAudioFiles", False)
             output_sample_rate = request_data.get("outputSampleRate", 22050)  # Default 22050 Hz (CosyVoice native)
             audio_format = request_data.get("audioFormat", "mp3")  # Default to mp3, can be "mp3" or "pcm"
@@ -439,8 +535,19 @@ async def websocket_tts(websocket: WebSocket):
             # Load and cache speaker data
             try:
                 speaker_data = load_and_cache_speaker(speaker_id)
+            except ValueError as ve:
+                # Handle structured error response
+                error_data = ve.args[0] if ve.args and isinstance(ve.args[0], dict) else {
+                    "errorCode": 400,
+                    "message": str(ve)
+                }
+                await websocket.send_text(json.dumps(error_data))
+                continue
             except Exception as e:
-                await websocket.send_text(json.dumps({"error": f"Failed to load speaker {speaker_id}: {str(e)}"}))
+                await websocket.send_text(json.dumps({
+                    "errorCode": 500,
+                    "message": f"Failed to load speaker {speaker_id}: {str(e)}"
+                }))
                 continue
             
             # Setup folder for saving audio chunks if requested
