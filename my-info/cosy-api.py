@@ -85,6 +85,7 @@ import subprocess
 import threading
 from queue import Queue
 import requests  # Add this import for HTTP requests
+from collections import OrderedDict  # Add this import for LRU cache
 
 # Valid API Keys for WebSocket authentication
 VALID_API_KEYS = {
@@ -96,6 +97,9 @@ VALID_API_KEYS = {
 
 # Add configurable domain at the top of the file
 TTS_CLONE_DOMAIN = "http://tts-clone.watchfun.cn"  # Configurable domain
+
+# Configurable memory settings
+MAX_CACHED_SPEAKERS = 100  # Maximum number of speakers to keep in memory cache
 
 # API model for TTS request
 class TTSRequest(BaseModel):
@@ -117,8 +121,8 @@ global_prompt_speech_16k = None
 global_prompt_text = None
 global_normalized_prompt_text = None
 
-# Speaker cache for different speakerId values
-speaker_cache = {}
+# Global cache for speaker data with LRU functionality
+speaker_cache = OrderedDict()  # Changed from dict to OrderedDict for LRU support
 
 def get_device():
     if torch.cuda.is_available():
@@ -281,6 +285,11 @@ def load_and_cache_speaker(speaker_id):
     # Convert speaker_id to string for consistent handling
     speaker_id_str = str(speaker_id)
     
+    # Check if already cached - move to end (most recently used)
+    if speaker_id_str in speaker_cache:
+        speaker_cache.move_to_end(speaker_id_str)
+        return speaker_cache[speaker_id_str]
+    
     # Validate speaker_id type
     if isinstance(speaker_id, int) or (isinstance(speaker_id, str) and speaker_id.isdigit()):
         # Integer type speakerId - use existing logic
@@ -298,10 +307,6 @@ def load_and_cache_speaker(speaker_id):
             "errorCode": 400,
             "message": f"Invalid speaker_id format. Must be integer or 32-character MD5 string, got: {speaker_id}"
         })
-    
-    if cache_key in speaker_cache:
-        print(f"[Speaker Cache] Using cached speaker {cache_key} (type: {speaker_type})")
-        return speaker_cache[cache_key]
     
     print(f"[Speaker Cache] Loading new speaker {cache_key} (type: {speaker_type})")
     
@@ -326,7 +331,11 @@ def load_and_cache_speaker(speaker_id):
                 speaker_info_url = f"{TTS_CLONE_DOMAIN}/getSpeakerInfo/{actual_speaker_id}"
                 print(f"[Speaker Cache] Fetching speaker info from: {speaker_info_url}")
                 
-                response = requests.get(speaker_info_url, timeout=10)
+                response = requests.get(
+                    speaker_info_url, 
+                    headers={"x-api-key": "sk-5z6y7x8w9v0u1t2s3r4q5p6o7n8m9l0k1j2i3h4g"},
+                    timeout=10
+                )
                 response.raise_for_status()
                 
                 speaker_info = response.json()
@@ -398,8 +407,17 @@ def load_and_cache_speaker(speaker_id):
             'original_speaker_id': speaker_id
         }
         
-        speaker_cache[cache_key] = speaker_data
-        print(f"[Speaker Cache] Cached speaker {cache_key} with key {cosyvoice_cache_key}")
+        # Cache the speaker data (add this before the existing return statement)
+        speaker_cache[speaker_id_str] = speaker_data
+        speaker_cache.move_to_end(speaker_id_str)  # Mark as most recently used
+        
+        # Check if cache size exceeds limit and remove oldest entries
+        while len(speaker_cache) > MAX_CACHED_SPEAKERS:
+            oldest_speaker_id = next(iter(speaker_cache))  # Get first (oldest) key
+            removed_data = speaker_cache.pop(oldest_speaker_id)
+            # Clean up memory - delete the removed speaker data
+            del removed_data
+            print(f"Removed oldest cached speaker {oldest_speaker_id} from memory cache")
         
         return speaker_data
         
