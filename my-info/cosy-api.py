@@ -73,8 +73,8 @@ import os
 import glob
 import argparse
 from typing import Optional
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request, Header
+from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
 import uvicorn
 import time
@@ -86,6 +86,9 @@ import threading
 from queue import Queue
 import requests  # Add this import for HTTP requests
 from collections import OrderedDict  # Add this import for LRU cache
+
+# Configuration - Default Speaker IDs (configurable array)
+DEFAULT_SPEAKER_IDS = [3, 2, 5, 8]  # Configurable array for default speakers
 
 # Valid API Keys for WebSocket authentication
 VALID_API_KEYS = {
@@ -1231,6 +1234,163 @@ async def generate_tts(request: TTSRequest):
         media_type=media_type,
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+@app.get("/getDefaultSpeakerList")
+async def get_default_speaker_list(request: Request, x_api_key: Optional[str] = Header(None)):
+    """
+    Get Default Speaker List API
+    
+    Parameters:
+    - x_api_key: API key in header
+    
+    Returns:
+    - JSON response with default speaker list and their mp3 URLs
+    """
+    # Verify API key
+    if x_api_key not in VALID_API_KEYS:
+        return {
+            "errorCode": 401,
+            "message": "Invalid API key"
+        }
+    
+    try:
+        speaker_list = []
+        
+        # Process each speaker ID in the configured order
+        for speaker_id in DEFAULT_SPEAKER_IDS:
+            # Construct file paths
+            speaker_folder = f'./asset/speakerId-{speaker_id}'
+            wav_path = os.path.join(speaker_folder, f'speakerId-{speaker_id}.wav')
+            mp3_path = os.path.join(speaker_folder, f'speakerId-{speaker_id}.mp3')
+            
+            # Check if WAV file exists
+            if not os.path.exists(wav_path):
+                print(f"[Default Speakers] WAV file not found for speaker {speaker_id}: {wav_path}")
+                continue
+            
+            # Convert WAV to MP3 if MP3 doesn't exist
+            if not os.path.exists(mp3_path):
+                try:
+                    print(f"[Default Speakers] Converting WAV to MP3 for speaker {speaker_id}")
+                    # Use ffmpeg to convert WAV to MP3 with 16kHz and mono
+                    cmd = [
+                        'ffmpeg',
+                        '-i', wav_path,
+                        '-ar', '16000',
+                        '-ac', '1',
+                        '-ab', '128k',
+                        '-y',
+                        mp3_path
+                    ]
+                    subprocess.run(cmd, capture_output=True, text=True, check=True)
+                    print(f"[Default Speakers] Successfully converted WAV to MP3 for speaker {speaker_id}")
+                except subprocess.CalledProcessError as e:
+                    print(f"[Default Speakers] Failed to convert WAV to MP3 for speaker {speaker_id}: {e}")
+                    continue
+                except FileNotFoundError:
+                    print(f"[Default Speakers] ffmpeg not found, cannot convert speaker {speaker_id}")
+                    continue
+            
+            # Build MP3 URL
+            host = request.url.hostname
+            port = request.url.port
+            scheme = request.url.scheme
+            if port is None or (port == 80 and scheme == 'http') or (port == 443 and scheme == 'https'):
+                mp3_url = f"{scheme}://{host}/speaker/{speaker_id}.mp3"
+            else:
+                mp3_url = f"{scheme}://{host}:{port}/speaker/{speaker_id}.mp3"
+            
+            # Add to speaker list
+            speaker_list.append({
+                "speakerId": speaker_id,
+                "mp3Url": mp3_url
+            })
+        
+        return {
+            "errorCode": 0,
+            "message": "success",
+            "speakerList": speaker_list
+        }
+        
+    except Exception as e:
+        return {
+            "errorCode": 500,
+            "message": f"Internal server error: {str(e)}"
+        }
+
+@app.get("/speaker/{speaker_id}.mp3")
+async def get_speaker_mp3(speaker_id: int):
+    """
+    Serve speaker MP3 files
+    
+    Parameters:
+    - speaker_id: Integer speaker ID
+    
+    Returns:
+    - MP3 file response
+    """
+    try:
+        # Construct file paths
+        speaker_folder = f'./asset/speakerId-{speaker_id}'
+        wav_path = os.path.join(speaker_folder, f'speakerId-{speaker_id}.wav')
+        mp3_path = os.path.join(speaker_folder, f'speakerId-{speaker_id}.mp3')
+        
+        # Check if WAV file exists
+        if not os.path.exists(wav_path):
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "errorCode": 404,
+                    "message": f"Speaker {speaker_id} not found"
+                }
+            )
+        
+        # Convert WAV to MP3 if MP3 doesn't exist
+        if not os.path.exists(mp3_path):
+            try:
+                print(f"[Speaker MP3] Converting WAV to MP3 for speaker {speaker_id}")
+                # Use ffmpeg to convert WAV to MP3 with 16kHz and mono
+                cmd = [
+                    'ffmpeg',
+                    '-i', wav_path,
+                    '-ar', '16000',
+                    '-ac', '1',
+                    '-ab', '128k',
+                    '-y',
+                    mp3_path
+                ]
+                subprocess.run(cmd, capture_output=True, text=True, check=True)
+                print(f"[Speaker MP3] Successfully converted WAV to MP3 for speaker {speaker_id}")
+            except subprocess.CalledProcessError as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail={
+                        "errorCode": 500,
+                        "message": "Failed to convert WAV to MP3"
+                    }
+                )
+            except FileNotFoundError:
+                raise HTTPException(
+                    status_code=500,
+                    detail={
+                        "errorCode": 500,
+                        "message": "ffmpeg not found"
+                    }
+                )
+        
+        # Serve the MP3 file
+        return FileResponse(mp3_path, media_type="audio/mpeg", filename=f"speakerId-{speaker_id}.mp3")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "errorCode": 500,
+                "message": f"Internal server error: {str(e)}"
+            }
+        )
 
 # Initialize model on startup
 @app.on_event("startup")
