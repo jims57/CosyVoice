@@ -10,9 +10,6 @@ USAGE INSTRUCTIONS:
 
 2. PACKAGE INSTALLATION:
    Install required dependencies:
-   pip install pydub
-   
-   Note: pydub may require additional audio libraries:
    - On macOS: brew install ffmpeg
    - On Ubuntu/Debian: sudo apt-get install ffmpeg
    - On Windows: Download ffmpeg and add to PATH
@@ -51,42 +48,73 @@ USAGE INSTRUCTIONS:
 
 import os
 import glob
-from pydub import AudioSegment
+import subprocess
+import json
+
+def get_audio_info(audio_path):
+    """Get audio file properties using ffprobe"""
+    try:
+        cmd = [
+            'ffprobe', '-v', 'quiet', '-print_format', 'json',
+            '-show_streams', audio_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        info = json.loads(result.stdout)
+        
+        # Find the audio stream
+        for stream in info['streams']:
+            if stream['codec_type'] == 'audio':
+                sample_rate = int(stream['sample_rate'])
+                channels = int(stream['channels'])
+                return sample_rate, channels
+        
+        return None, None
+    except (subprocess.CalledProcessError, json.JSONDecodeError, KeyError):
+        return None, None
 
 def convert_mp3_to_16khz_mono_wav(mp3_path):
     """Convert MP3 file to 16kHz mono WAV and save with .wav extension"""
     try:
-        # Load audio file
-        audio = AudioSegment.from_mp3(mp3_path)
+        # Get current audio properties
+        current_sample_rate, num_channels = get_audio_info(mp3_path)
         
-        # Check current properties
-        current_sample_rate = audio.frame_rate
-        num_channels = audio.channels
+        if current_sample_rate is None or num_channels is None:
+            print(f"  ✗ Error reading audio properties of {os.path.basename(mp3_path)}")
+            return
         
         print(f"Checking {os.path.basename(mp3_path)}: {current_sample_rate}Hz, {num_channels} channel(s)")
         
         print(f"  → Converting to 16kHz mono WAV...")
         
-        # Convert to mono if stereo
+        # Show conversion details
         if num_channels > 1:
-            audio = audio.set_channels(1)
             print(f"    Converted from {num_channels} channels to mono")
         
-        # Resample to 16kHz if needed
         if current_sample_rate != 16000:
-            audio = audio.set_frame_rate(16000)
             print(f"    Resampled from {current_sample_rate}Hz to 16000Hz")
         
         # Create WAV filename by replacing .mp3 with .wav
         wav_path = mp3_path.rsplit('.', 1)[0] + '.wav'
         
-        # Save as WAV file
-        audio.export(wav_path, format="wav")
-        print(f"  ✓ Converted and saved to {os.path.basename(wav_path)}")
+        # Convert using ffmpeg
+        cmd = [
+            'ffmpeg', '-i', mp3_path,
+            '-ar', '16000',  # Set sample rate to 16kHz
+            '-ac', '1',      # Set to mono (1 channel)
+            '-y',            # Overwrite output file
+            wav_path
+        ]
         
-        # Delete original MP3 file
-        os.remove(mp3_path)
-        print(f"  ✓ Deleted original MP3 file: {os.path.basename(mp3_path)}")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            print(f"  ✓ Converted and saved to {os.path.basename(wav_path)}")
+            
+            # Delete original MP3 file
+            os.remove(mp3_path)
+            print(f"  ✓ Deleted original MP3 file: {os.path.basename(mp3_path)}")
+        else:
+            print(f"  ✗ Error converting {os.path.basename(mp3_path)}: ffmpeg failed")
         
     except Exception as e:
         print(f"  ✗ Error converting {os.path.basename(mp3_path)}: {e}")
