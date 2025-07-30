@@ -312,8 +312,8 @@ Examples:
                        help='Path to input PCM file (default: pcm/a_man_die_48khz.pcm)')
     
     parser.add_argument('--output-dir', 
-                       default='frames_aligned_mp3_chunks',
-                       help='Output directory for MP3 chunks (default: frames_aligned_mp3_chunks)')
+                       default='mp3_chunks_split_by_silence',
+                       help='Output directory for MP3 chunks (default: mp3_chunks_split_by_silence)')
     
     parser.add_argument('--volume-dB', 
                        type=float, 
