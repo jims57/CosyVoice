@@ -177,7 +177,7 @@ Examples:
     
     parser.add_argument('--pcm-file', 
                        default=None,
-                       help='Path to input PCM file (default: pcm/a_man_die.pcm)')
+                       help='Path to input PCM file (default: pcm/a_man_die_48khz.pcm)')
     
     parser.add_argument('--output-dir', 
                        default='frames_aligned_mp3_chunks',
@@ -222,7 +222,7 @@ Examples:
             pcm_file = os.path.join(script_dir, args.pcm_file)
     else:
         # Use default file
-        pcm_file = os.path.join(script_dir, 'pcm', 'a_man_die.pcm')
+        pcm_file = os.path.join(script_dir, 'pcm', 'a_man_die_48khz.pcm')
     
     # Determine output directory path
     if os.path.isabs(args.output_dir):
