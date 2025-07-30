@@ -25,6 +25,11 @@ Examples:
 
 Requirements:
     - ffmpeg must be installed and available in PATH
+    - numpy must be installed for PCM data processing
+      # Install numpy using Python virtual environment (recommended):
+      python -m venv mp3-chunk
+      source mp3-chunk/bin/activate  # On Windows: mp3-chunk\Scripts\activate
+      pip install numpy
     - Input PCM file should be raw PCM data (no WAV header)
     - Output directory will be created automatically
 
