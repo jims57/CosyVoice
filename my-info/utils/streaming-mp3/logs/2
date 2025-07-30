@@ -1,0 +1,263 @@
+(mp3-chunk) (base) mac@jims57 streaming-mp3 % python convert_pcm_to_mp3_chunks_by_silence.py --volume-dB -30.0 --min-samples-window 2400
+Input file: /Users/mac/Documents/GitHub/CosyVoice/my-info/utils/streaming-mp3/pcm/a_man_die_48khz.pcm
+Output directory: /Users/mac/Documents/GitHub/CosyVoice/my-info/utils/streaming-mp3/mp3_chunks_split_by_silence
+
+PCM input parameters:
+  Input sample rate: 48000 Hz
+  Channels: 1 (Mono)
+  Bit depth: 16
+
+Simple silence detection parameters:
+  Volume threshold: -30.0 dB
+  Min silence duration: 0.050 seconds
+  Output MP3 sample rate: 16000 Hz
+
+Cleaning up 57 existing MP3 files...
+  Deleted: chunk_9.mp3
+  Deleted: chunk_49.mp3
+  Deleted: chunk_48.mp3
+  Deleted: chunk_8.mp3
+  Deleted: chunk_16.mp3
+  Deleted: chunk_17.mp3
+  Deleted: chunk_29.mp3
+  Deleted: chunk_15.mp3
+  Deleted: chunk_14.mp3
+  Deleted: chunk_28.mp3
+  Deleted: chunk_10.mp3
+  Deleted: chunk_38.mp3
+  Deleted: chunk_39.mp3
+  Deleted: chunk_11.mp3
+  Deleted: chunk_13.mp3
+  Deleted: chunk_12.mp3
+  Deleted: chunk_23.mp3
+  Deleted: chunk_37.mp3
+  Deleted: chunk_36.mp3
+  Deleted: chunk_22.mp3
+  Deleted: chunk_34.mp3
+  Deleted: chunk_20.mp3
+  Deleted: chunk_21.mp3
+  Deleted: chunk_35.mp3
+  Deleted: chunk_31.mp3
+  Deleted: chunk_25.mp3
+  Deleted: chunk_19.mp3
+  Deleted: chunk_18.mp3
+  Deleted: chunk_24.mp3
+  Deleted: chunk_30.mp3
+  Deleted: chunk_26.mp3
+  Deleted: chunk_32.mp3
+  Deleted: chunk_33.mp3
+  Deleted: chunk_27.mp3
+  Deleted: chunk_0.mp3
+  Deleted: chunk_40.mp3
+  Deleted: chunk_54.mp3
+  Deleted: chunk_55.mp3
+  Deleted: chunk_41.mp3
+  Deleted: chunk_1.mp3
+  Deleted: chunk_3.mp3
+  Deleted: chunk_43.mp3
+  Deleted: chunk_42.mp3
+  Deleted: chunk_56.mp3
+  Deleted: chunk_2.mp3
+  Deleted: chunk_6.mp3
+  Deleted: chunk_52.mp3
+  Deleted: chunk_46.mp3
+  Deleted: chunk_47.mp3
+  Deleted: chunk_53.mp3
+  Deleted: chunk_7.mp3
+  Deleted: chunk_5.mp3
+  Deleted: chunk_45.mp3
+  Deleted: chunk_51.mp3
+  Deleted: chunk_50.mp3
+  Deleted: chunk_44.mp3
+  Deleted: chunk_4.mp3
+✓ Cleanup completed
+
+Input file analysis:
+  Total bytes: 6582858
+  Total samples: 3291429
+  Duration: 68.57 seconds
+  Frame size: 960 samples (20ms)
+  Min silence frames: 2
+
+Processing frames for silence detection...
+  Found silence: bytes 0-3840 (2 frames, 0.040s)
+  Found silence: bytes 349440-368640 (10 frames, 0.200s)
+  Found silence: bytes 380160-387840 (4 frames, 0.080s)
+  Found silence: bytes 710400-714240 (2 frames, 0.040s)
+  Found silence: bytes 833280-887040 (28 frames, 0.560s)
+  Found silence: bytes 1102080-1105920 (2 frames, 0.040s)
+  Found silence: bytes 1109760-1140480 (16 frames, 0.320s)
+  Found silence: bytes 1263360-1267200 (2 frames, 0.040s)
+  Found silence: bytes 1286400-1320960 (18 frames, 0.360s)
+  Found silence: bytes 1390080-1397760 (4 frames, 0.080s)
+  Found silence: bytes 1440000-1495680 (29 frames, 0.580s)
+  Found silence: bytes 1674240-1687680 (7 frames, 0.140s)
+  Found silence: bytes 1693440-1704960 (6 frames, 0.120s)
+  Found silence: bytes 1768320-1820160 (27 frames, 0.540s)
+  Found silence: bytes 1971840-1977600 (3 frames, 0.060s)
+  Found silence: bytes 2050560-2110080 (31 frames, 0.620s)
+  Found silence: bytes 2175360-2179200 (2 frames, 0.040s)
+  Found silence: bytes 2181120-2217600 (19 frames, 0.380s)
+  Found silence: bytes 2323200-2376960 (28 frames, 0.560s)
+  Found silence: bytes 2497920-2549760 (27 frames, 0.540s)
+  Found silence: bytes 2563200-2567040 (2 frames, 0.040s)
+  Found silence: bytes 2628480-2634240 (3 frames, 0.060s)
+  Found silence: bytes 2711040-2755200 (23 frames, 0.460s)
+  Found silence: bytes 2876160-2916480 (21 frames, 0.420s)
+  Found silence: bytes 3025920-3029760 (2 frames, 0.040s)
+  Found silence: bytes 3033600-3102720 (36 frames, 0.720s)
+  Found silence: bytes 3212160-3256320 (23 frames, 0.460s)
+  Found silence: bytes 3335040-3421440 (45 frames, 0.900s)
+  Found silence: bytes 3496320-3500160 (2 frames, 0.040s)
+  Found silence: bytes 3536640-3573120 (19 frames, 0.380s)
+  Found silence: bytes 3692160-3740160 (25 frames, 0.500s)
+  Found silence: bytes 3805440-3809280 (2 frames, 0.040s)
+  Found silence: bytes 3870720-3966720 (50 frames, 1.000s)
+  Found silence: bytes 4158720-4166400 (4 frames, 0.080s)
+  Found silence: bytes 4170240-4214400 (23 frames, 0.460s)
+  Found silence: bytes 4410240-4414080 (2 frames, 0.040s)
+  Found silence: bytes 4429440-4488960 (31 frames, 0.620s)
+  Found silence: bytes 4632960-4636800 (2 frames, 0.040s)
+  Found silence: bytes 4792320-4800000 (4 frames, 0.080s)
+  Found silence: bytes 4801920-4828800 (14 frames, 0.280s)
+  Found silence: bytes 4888320-4940160 (27 frames, 0.540s)
+  Found silence: bytes 4978560-5020800 (22 frames, 0.440s)
+  Found silence: bytes 5116800-5122560 (3 frames, 0.060s)
+  Found silence: bytes 5124480-5197440 (38 frames, 0.760s)
+  Found silence: bytes 5291520-5295360 (2 frames, 0.040s)
+  Found silence: bytes 5337600-5383680 (24 frames, 0.480s)
+  Found silence: bytes 5420160-5495040 (39 frames, 0.780s)
+  Found silence: bytes 5621760-5690880 (36 frames, 0.720s)
+  Found silence: bytes 5754240-5786880 (17 frames, 0.340s)
+  Found silence: bytes 5846400-5913600 (35 frames, 0.700s)
+  Found silence: bytes 5973120-5978880 (3 frames, 0.060s)
+  Found silence: bytes 5980800-6019200 (20 frames, 0.400s)
+  Found silence: bytes 6103680-6107520 (2 frames, 0.040s)
+  Found silence: bytes 6138240-6178560 (21 frames, 0.420s)
+  Found silence: bytes 6201600-6257280 (29 frames, 0.580s)
+  Found silence: bytes 6504960-6510720 (3 frames, 0.060s)
+  Found silence: bytes 6539520-6549120 (5 frames, 0.100s)
+  Found final silence: bytes 6558720-6582858 (12 frames, 0.240s)
+
+Splitting audio into chunks...
+  Chunk 0: bytes 3840-349440 (172800 samples, duration: 3.60s)
+    ✓ Created chunk_0.mp3 (71.7 KB, 172800 samples, ~3.60s)
+  Chunk 1: bytes 368640-380160 (5760 samples, duration: 0.12s)
+    ✓ Created chunk_1.mp3 (4.2 KB, 5760 samples, ~0.12s)
+  Chunk 2: bytes 387840-710400 (161280 samples, duration: 3.36s)
+    ✓ Created chunk_2.mp3 (67.5 KB, 161280 samples, ~3.36s)
+  Chunk 3: bytes 714240-833280 (59520 samples, duration: 1.24s)
+    ✓ Created chunk_3.mp3 (26.0 KB, 59520 samples, ~1.24s)
+  Chunk 4: bytes 887040-1102080 (107520 samples, duration: 2.24s)
+    ✓ Created chunk_4.mp3 (45.7 KB, 107520 samples, ~2.24s)
+  Chunk 5: bytes 1105920-1109760 (1920 samples, duration: 0.04s)
+    ✓ Created chunk_5.mp3 (2.8 KB, 1920 samples, ~0.04s)
+  Chunk 6: bytes 1140480-1263360 (61440 samples, duration: 1.28s)
+    ✓ Created chunk_6.mp3 (26.7 KB, 61440 samples, ~1.28s)
+  Chunk 7: bytes 1267200-1286400 (9600 samples, duration: 0.20s)
+    ✓ Created chunk_7.mp3 (5.6 KB, 9600 samples, ~0.20s)
+  Chunk 8: bytes 1320960-1390080 (34560 samples, duration: 0.72s)
+    ✓ Created chunk_8.mp3 (15.5 KB, 34560 samples, ~0.72s)
+  Chunk 9: bytes 1397760-1440000 (21120 samples, duration: 0.44s)
+    ✓ Created chunk_9.mp3 (10.5 KB, 21120 samples, ~0.44s)
+  Chunk 10: bytes 1495680-1674240 (89280 samples, duration: 1.86s)
+    ✓ Created chunk_10.mp3 (38.0 KB, 89280 samples, ~1.86s)
+  Chunk 11: bytes 1687680-1693440 (2880 samples, duration: 0.06s)
+    ✓ Created chunk_11.mp3 (2.8 KB, 2880 samples, ~0.06s)
+  Chunk 12: bytes 1704960-1768320 (31680 samples, duration: 0.66s)
+    ✓ Created chunk_12.mp3 (14.8 KB, 31680 samples, ~0.66s)
+  Chunk 13: bytes 1820160-1971840 (75840 samples, duration: 1.58s)
+    ✓ Created chunk_13.mp3 (32.3 KB, 75840 samples, ~1.58s)
+  Chunk 14: bytes 1977600-2050560 (36480 samples, duration: 0.76s)
+    ✓ Created chunk_14.mp3 (16.9 KB, 36480 samples, ~0.76s)
+  Chunk 15: bytes 2110080-2175360 (32640 samples, duration: 0.68s)
+    ✓ Created chunk_15.mp3 (14.8 KB, 32640 samples, ~0.68s)
+  Chunk 16: bytes 2179200-2181120 (960 samples, duration: 0.02s)
+    ✓ Created chunk_16.mp3 (2.1 KB, 960 samples, ~0.02s)
+  Chunk 17: bytes 2217600-2323200 (52800 samples, duration: 1.10s)
+    ✓ Created chunk_17.mp3 (23.2 KB, 52800 samples, ~1.10s)
+  Chunk 18: bytes 2376960-2497920 (60480 samples, duration: 1.26s)
+    ✓ Created chunk_18.mp3 (26.0 KB, 60480 samples, ~1.26s)
+  Chunk 19: bytes 2549760-2563200 (6720 samples, duration: 0.14s)
+    ✓ Created chunk_19.mp3 (4.2 KB, 6720 samples, ~0.14s)
+  Chunk 20: bytes 2567040-2628480 (30720 samples, duration: 0.64s)
+    ✓ Created chunk_20.mp3 (14.1 KB, 30720 samples, ~0.64s)
+  Chunk 21: bytes 2634240-2711040 (38400 samples, duration: 0.80s)
+    ✓ Created chunk_21.mp3 (17.6 KB, 38400 samples, ~0.80s)
+  Chunk 22: bytes 2755200-2876160 (60480 samples, duration: 1.26s)
+    ✓ Created chunk_22.mp3 (26.0 KB, 60480 samples, ~1.26s)
+  Chunk 23: bytes 2916480-3025920 (54720 samples, duration: 1.14s)
+    ✓ Created chunk_23.mp3 (23.9 KB, 54720 samples, ~1.14s)
+  Chunk 24: bytes 3029760-3033600 (1920 samples, duration: 0.04s)
+    ✓ Created chunk_24.mp3 (2.8 KB, 1920 samples, ~0.04s)
+  Chunk 25: bytes 3102720-3212160 (54720 samples, duration: 1.14s)
+    ✓ Created chunk_25.mp3 (23.9 KB, 54720 samples, ~1.14s)
+  Chunk 26: bytes 3256320-3335040 (39360 samples, duration: 0.82s)
+    ✓ Created chunk_26.mp3 (17.6 KB, 39360 samples, ~0.82s)
+  Chunk 27: bytes 3421440-3496320 (37440 samples, duration: 0.78s)
+    ✓ Created chunk_27.mp3 (16.9 KB, 37440 samples, ~0.78s)
+  Chunk 28: bytes 3500160-3536640 (18240 samples, duration: 0.38s)
+    ✓ Created chunk_28.mp3 (9.1 KB, 18240 samples, ~0.38s)
+  Chunk 29: bytes 3573120-3692160 (59520 samples, duration: 1.24s)
+    ✓ Created chunk_29.mp3 (26.0 KB, 59520 samples, ~1.24s)
+  Chunk 30: bytes 3740160-3805440 (32640 samples, duration: 0.68s)
+    ✓ Created chunk_30.mp3 (14.8 KB, 32640 samples, ~0.68s)
+  Chunk 31: bytes 3809280-3870720 (30720 samples, duration: 0.64s)
+    ✓ Created chunk_31.mp3 (14.1 KB, 30720 samples, ~0.64s)
+  Chunk 32: bytes 3966720-4158720 (96000 samples, duration: 2.00s)
+    ✓ Created chunk_32.mp3 (40.8 KB, 96000 samples, ~2.00s)
+  Chunk 33: bytes 4166400-4170240 (1920 samples, duration: 0.04s)
+    ✓ Created chunk_33.mp3 (2.8 KB, 1920 samples, ~0.04s)
+  Chunk 34: bytes 4214400-4410240 (97920 samples, duration: 2.04s)
+    ✓ Created chunk_34.mp3 (41.5 KB, 97920 samples, ~2.04s)
+  Chunk 35: bytes 4414080-4429440 (7680 samples, duration: 0.16s)
+    ✓ Created chunk_35.mp3 (4.9 KB, 7680 samples, ~0.16s)
+  Chunk 36: bytes 4488960-4632960 (72000 samples, duration: 1.50s)
+    ✓ Created chunk_36.mp3 (30.9 KB, 72000 samples, ~1.50s)
+  Chunk 37: bytes 4636800-4792320 (77760 samples, duration: 1.62s)
+    ✓ Created chunk_37.mp3 (33.0 KB, 77760 samples, ~1.62s)
+  Chunk 38: bytes 4800000-4801920 (960 samples, duration: 0.02s)
+    ✓ Created chunk_38.mp3 (2.1 KB, 960 samples, ~0.02s)
+  Chunk 39: bytes 4828800-4888320 (29760 samples, duration: 0.62s)
+    ✓ Created chunk_39.mp3 (14.1 KB, 29760 samples, ~0.62s)
+  Chunk 40: bytes 4940160-4978560 (19200 samples, duration: 0.40s)
+    ✓ Created chunk_40.mp3 (9.8 KB, 19200 samples, ~0.40s)
+  Chunk 41: bytes 5020800-5116800 (48000 samples, duration: 1.00s)
+    ✓ Created chunk_41.mp3 (21.1 KB, 48000 samples, ~1.00s)
+  Chunk 42: bytes 5122560-5124480 (960 samples, duration: 0.02s)
+    ✓ Created chunk_42.mp3 (2.1 KB, 960 samples, ~0.02s)
+  Chunk 43: bytes 5197440-5291520 (47040 samples, duration: 0.98s)
+    ✓ Created chunk_43.mp3 (21.1 KB, 47040 samples, ~0.98s)
+  Chunk 44: bytes 5295360-5337600 (21120 samples, duration: 0.44s)
+    ✓ Created chunk_44.mp3 (10.5 KB, 21120 samples, ~0.44s)
+  Chunk 45: bytes 5383680-5420160 (18240 samples, duration: 0.38s)
+    ✓ Created chunk_45.mp3 (9.1 KB, 18240 samples, ~0.38s)
+  Chunk 46: bytes 5495040-5621760 (63360 samples, duration: 1.32s)
+    ✓ Created chunk_46.mp3 (27.4 KB, 63360 samples, ~1.32s)
+  Chunk 47: bytes 5690880-5754240 (31680 samples, duration: 0.66s)
+    ✓ Created chunk_47.mp3 (14.8 KB, 31680 samples, ~0.66s)
+  Chunk 48: bytes 5786880-5846400 (29760 samples, duration: 0.62s)
+    ✓ Created chunk_48.mp3 (14.1 KB, 29760 samples, ~0.62s)
+  Chunk 49: bytes 5913600-5973120 (29760 samples, duration: 0.62s)
+    ✓ Created chunk_49.mp3 (14.1 KB, 29760 samples, ~0.62s)
+  Chunk 50: bytes 5978880-5980800 (960 samples, duration: 0.02s)
+    ✓ Created chunk_50.mp3 (2.1 KB, 960 samples, ~0.02s)
+  Chunk 51: bytes 6019200-6103680 (42240 samples, duration: 0.88s)
+    ✓ Created chunk_51.mp3 (19.0 KB, 42240 samples, ~0.88s)
+  Chunk 52: bytes 6107520-6138240 (15360 samples, duration: 0.32s)
+    ✓ Created chunk_52.mp3 (7.7 KB, 15360 samples, ~0.32s)
+  Chunk 53: bytes 6178560-6201600 (11520 samples, duration: 0.24s)
+    ✓ Created chunk_53.mp3 (6.3 KB, 11520 samples, ~0.24s)
+  Chunk 54: bytes 6257280-6504960 (123840 samples, duration: 2.58s)
+    ✓ Created chunk_54.mp3 (52.0 KB, 123840 samples, ~2.58s)
+  Chunk 55: bytes 6510720-6539520 (14400 samples, duration: 0.30s)
+    ✓ Created chunk_55.mp3 (7.7 KB, 14400 samples, ~0.30s)
+  Chunk 56: bytes 6549120-6558720 (4800 samples, duration: 0.10s)
+    ✓ Created chunk_56.mp3 (3.5 KB, 4800 samples, ~0.10s)
+
+✓ Created 57 silence-based MP3 chunks
+
+Combining 57 chunks into single MP3...
+✓ Successfully combined chunks into: combined_output.mp3
+✓ Combined file size: 1.0 MB
+✓ Saved to: /Users/mac/Documents/GitHub/CosyVoice/my-info/utils/streaming-mp3/mp3_combined
