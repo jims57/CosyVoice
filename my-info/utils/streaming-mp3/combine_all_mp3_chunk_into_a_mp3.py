@@ -22,7 +22,7 @@ USAGE INSTRUCTIONS:
      python combine_all_mp3_chunk_into_a_mp3.py
    
    - Combine chunks from custom folder:
-     python combine_all_mp3_chunk_into_a_mp3.py --chunks-dir my_custom_chunks
+     python combine_all_mp3_chunk_into_a_mp3.py --chunks-dir mp3_chunks_split_by_silence
    
    - Combine chunks and save to custom output directory:
      python combine_all_mp3_chunk_into_a_mp3.py --chunks-dir mp3_chunks --output-dir my_output
@@ -33,6 +33,9 @@ USAGE INSTRUCTIONS:
    - --output-name: Name of the output MP3 file (default: combined_all_chunks.mp3)
 
 6. EXAMPLES:
+   # My usage examples:
+   python combine_all_mp3_chunk_into_a_mp3.py --chunks-dir mp3_chunks_split_by_silence --output-name combined_from_mp3_chunks_split_by_silence.mp3
+
    # Basic usage with default settings
    python combine_all_mp3_chunk_into_a_mp3.py
    

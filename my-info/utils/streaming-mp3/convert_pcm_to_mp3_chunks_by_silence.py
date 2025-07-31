@@ -14,6 +14,9 @@ Configuration:
     - output_mp3_sample_rate: Output MP3 sample rate (default: 16000 Hz)
 
 Examples:
+    # My usage examples:
+    python convert_pcm_to_mp3_chunks_by_silence.py --pcm-file pcm/pcm_chunks_combined.pcm  --volume-dB -40.0 --min-samples-window 960  --input-pcm-sample-rate 16000 --output-mp3-sample-rate 16000
+
     # Basic usage with default settings
     python convert_pcm_to_mp3_chunks_by_silence.py
     
