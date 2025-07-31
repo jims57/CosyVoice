@@ -79,7 +79,7 @@ class MP3ChunksHandler:
     
     def add_pcm_data(self, pcm_data: bytes) -> List[bytes]:
         """
-        Add new PCM data and return any ready MP3 chunks (same logic as working script)
+        Add new PCM data and return any ready MP3 chunks (exact same logic as working script)
         
         Args:
             pcm_data: Raw PCM bytes to add to buffer
@@ -93,12 +93,18 @@ class MP3ChunksHandler:
         
         mp3_chunks = []  # Always initialize as empty list
         
-        # Process complete samples (same logic as working script)
+        # Process complete samples (exact same logic as working script)
         while len(self.pcm_buffer) >= self.min_samples_window * 2:
-            # Extract samples for silence detection
-            samples_data = self.pcm_buffer[:self.min_samples_window * 2]
+            # Extract samples for silence detection (exact same window as working script)
+            window_start = self.processed_samples * 2
+            window_end = window_start + (self.min_samples_window * 2)
             
-            # Simple silence detection (same logic as working script)
+            if window_end > len(self.pcm_buffer):
+                break  # Not enough data for complete window
+            
+            samples_data = self.pcm_buffer[window_start:window_end]
+            
+            # Simple silence detection (exact same logic as working script)
             is_silent_region = True
             lowest_volume_sample = 0
             
@@ -106,7 +112,7 @@ class MP3ChunksHandler:
                 if i + 1 < len(samples_data):
                     # Read 16-bit little-endian sample
                     sample = int.from_bytes(samples_data[i:i+2], byteorder='little', signed=True)
-                    # Use same volume threshold logic as working script
+                    # Use exact same volume threshold logic as working script
                     if abs(sample) > self.volume_threshold:
                         is_silent_region = False
                         break
@@ -117,7 +123,7 @@ class MP3ChunksHandler:
                 # Found silence region, create MP3 chunk ending here (preserve all samples)
                 chunk_end_sample = self.processed_samples + self.min_samples_window
                 
-                # Calculate chunk boundaries in bytes
+                # Calculate chunk boundaries in bytes (exact same as working script)
                 chunk_start_byte = self.chunk_start_sample * 2
                 chunk_end_byte = chunk_end_sample * 2
                 
@@ -126,29 +132,30 @@ class MP3ChunksHandler:
                     chunk_data = bytes(self.pcm_buffer[chunk_start_byte:chunk_end_byte])
                     
                     if len(chunk_data) > 2:  # At least one sample
-                        # Convert chunk to MP3 using same logic as working script
+                        # Convert chunk to MP3 using exact same logic as working script
                         mp3_data = self._convert_pcm_to_mp3(chunk_data)
                         
                         if mp3_data:
                             chunk_duration = len(chunk_data) / (self.input_sample_rate * 2)
                             mp3_chunks.append(mp3_data)
-                            print(f"[MP3Handler] Generated MP3 chunk: {len(mp3_data)} bytes ({chunk_duration:.3f}s)")
+                            print(f"[MP3Handler] Generated MP3 chunk (silence): {len(mp3_data)} bytes ({chunk_duration:.3f}s)")
                         
-                        # Update chunk start for next chunk
+                        # Update chunk start for next chunk (exact same as working script)
                         self.chunk_start_sample = chunk_end_sample
                         
-                        # Remove processed data from buffer
+                        # Remove processed data from buffer (exact same as working script)
                         self.pcm_buffer = self.pcm_buffer[chunk_end_byte:]
                         self.processed_samples = 0  # Reset relative to new buffer start
                         
                         continue  # Continue processing for more chunks
             
-            # Move to next window (continue searching for silence)
+            # Move to next window (exact same as working script)
             self.processed_samples += self.min_samples_window
             
-            # If we've moved past the available data, stop processing
-            if self.processed_samples * 2 >= len(self.pcm_buffer):
-                break
+            # If no silence found in this window, move the window (exact same as working script)
+            if not is_silent_region:
+                # Continue to next window without splitting
+                continue
         
         return mp3_chunks  # Always return list (empty if no chunks ready)
     
