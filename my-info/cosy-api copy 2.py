@@ -72,7 +72,7 @@ import base64
 import os
 import glob
 import argparse
-from typing import Optional, List
+from typing import Optional
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request, Header
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
@@ -107,11 +107,11 @@ TTS_CLONE_DOMAIN = "http://tts-clone.watchfun.cn"  # Configurable domain
 # Configurable memory settings
 MAX_CACHED_SPEAKERS = 100  # Maximum number of speakers to keep in memory cache
 
-# MP3 Chunks Configuration - Updated January 23, 2025
-MP3_INPUT_PCM_SAMPLE_RATE = 24000  # Input PCM sample rate for MP3 chunking (Hz) - Updated to match working config
+# MP3 Chunks Configuration - Added December 19, 2024
+MP3_INPUT_PCM_SAMPLE_RATE = 16000  # Input PCM sample rate for MP3 chunking (Hz)
 MP3_VOLUME_DB = -40.0  # Volume threshold for silence detection (dB)
 MP3_MIN_SAMPLES_WINDOW = 960  # Minimum samples window for silence detection
-MP3_OUTPUT_SAMPLE_RATE = 24000  # Output MP3 sample rate (Hz) - Updated to match working config
+MP3_OUTPUT_SAMPLE_RATE = 16000  # Output MP3 sample rate (Hz)
 
 # API model for TTS request
 class TTSRequest(BaseModel):
@@ -599,10 +599,10 @@ async def websocket_tts(websocket: WebSocket):
                 target_pcm_bytes_per_chunk = int(output_sample_rate * 2 * segment_duration)  # 2 bytes per sample
                 print(f"[WS-TTS] Audio format: PCM, target PCM bytes per chunk: {target_pcm_bytes_per_chunk}")
             else:
-                # For MP3 format, use MP3 chunks handler - Updated January 23, 2025
+                # For MP3 format, use MP3 chunks handler
                 mp3_handler = MP3ChunksHandler(
                     input_sample_rate=MP3_INPUT_PCM_SAMPLE_RATE,
-                    output_sample_rate=output_sample_rate,  # Use user's outputSampleRate
+                    output_sample_rate=MP3_OUTPUT_SAMPLE_RATE,
                     volume_dB=MP3_VOLUME_DB,
                     min_samples_window=MP3_MIN_SAMPLES_WINDOW,
                     channels=1,
@@ -1028,21 +1028,23 @@ async def websocket_tts(websocket: WebSocket):
                                 
                                 await asyncio.sleep(0)  # Allow other tasks
                         else:
-                            # For MP3 format, use MP3 chunks handler - Updated January 23, 2025
+                            # For MP3 format, use MP3 chunks handler - Updated December 19, 2024
                             mp3_convert_start = time.time()
                             
-                            # Add PCM data to MP3 handler and get available chunks
-                            available_mp3_chunks = mp3_handler.add_pcm_data(pcm_data)
+                            # Add PCM data to MP3 handler buffer
+                            mp3_handler.add_pcm_data(pcm_data)
                             
-                            # Safety check: ensure we have a list to iterate over
-                            if available_mp3_chunks is None:
-                                available_mp3_chunks = []
+                            # Get available MP3 chunks from handler
+                            available_chunks = mp3_handler.get_available_chunks()
                             
                             # Send each available MP3 chunk immediately
-                            for mp3_data in available_mp3_chunks:
+                            for mp3_data in available_chunks:
                                 if mp3_data:
+                                    send_start = time.time()
                                     await websocket.send_bytes(mp3_data)
-                                    print(f"[WS-TTS] 📦 MP3 chunk {mp3_chunk_counter} sent: {len(mp3_data)} bytes")
+                                    send_time = (time.time() - send_start) * 1000
+                                    
+                                    print(f"[WS-TTS] 📦 MP3 chunk {mp3_chunk_counter} sent: {len(mp3_data)} bytes, send time: {send_time:.2f}ms")
                                     
                                     # Save MP3 chunk to file if requested
                                     if save_audio_files and chunk_save_folder:
@@ -1061,8 +1063,9 @@ async def websocket_tts(websocket: WebSocket):
                                     if not first_chunk_sent:
                                         first_chunk_sent_time = time.time()
                                         elapsed_since_start = (first_chunk_sent_time - start_time) * 1000
-                                        first_chunk_sent_since_request = elapsed_since_start
-                                        print(f"[WS-TTS] 🎯 Time to send first MP3 chunk: {elapsed_since_start:.2f} ms since start")
+                                        elapsed_since_before = (first_chunk_sent_time - before_inference_time) * 1000
+                                        first_chunk_sent_since_request = elapsed_since_start  # Store for summary
+                                        print(f"[WS-TTS] 🎯 Time to send first MP3 chunk: {elapsed_since_start:.2f} ms since start, {elapsed_since_before:.2f} ms since before inference")
                                         first_chunk_sent = True
                                     
                                     await asyncio.sleep(0)  # Allow other tasks

@@ -72,7 +72,7 @@ import base64
 import os
 import glob
 import argparse
-from typing import Optional, List
+from typing import Optional
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request, Header
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
@@ -107,11 +107,11 @@ TTS_CLONE_DOMAIN = "http://tts-clone.watchfun.cn"  # Configurable domain
 # Configurable memory settings
 MAX_CACHED_SPEAKERS = 100  # Maximum number of speakers to keep in memory cache
 
-# MP3 Chunks Configuration - Updated January 23, 2025
-MP3_INPUT_PCM_SAMPLE_RATE = 24000  # Input PCM sample rate for MP3 chunking (Hz) - Updated to match working config
+# MP3 Chunks Configuration - Added December 19, 2024
+MP3_INPUT_PCM_SAMPLE_RATE = 16000  # Input PCM sample rate for MP3 chunking (Hz)
 MP3_VOLUME_DB = -40.0  # Volume threshold for silence detection (dB)
 MP3_MIN_SAMPLES_WINDOW = 960  # Minimum samples window for silence detection
-MP3_OUTPUT_SAMPLE_RATE = 24000  # Output MP3 sample rate (Hz) - Updated to match working config
+MP3_OUTPUT_SAMPLE_RATE = 16000  # Output MP3 sample rate (Hz)
 
 # API model for TTS request
 class TTSRequest(BaseModel):
@@ -599,10 +599,10 @@ async def websocket_tts(websocket: WebSocket):
                 target_pcm_bytes_per_chunk = int(output_sample_rate * 2 * segment_duration)  # 2 bytes per sample
                 print(f"[WS-TTS] Audio format: PCM, target PCM bytes per chunk: {target_pcm_bytes_per_chunk}")
             else:
-                # For MP3 format, use MP3 chunks handler - Updated January 23, 2025
+                # For MP3 format, use MP3 chunks handler
                 mp3_handler = MP3ChunksHandler(
                     input_sample_rate=MP3_INPUT_PCM_SAMPLE_RATE,
-                    output_sample_rate=output_sample_rate,  # Use user's outputSampleRate
+                    output_sample_rate=output_sample_rate,
                     volume_dB=MP3_VOLUME_DB,
                     min_samples_window=MP3_MIN_SAMPLES_WINDOW,
                     channels=1,
@@ -623,110 +623,6 @@ async def websocket_tts(websocket: WebSocket):
             print(f"Generating audio for text: {text[:50]}{'...' if len(text) > 50 else ''}")
             if save_audio_files:
                 print(f"[WS-TTS] Will save {audio_format.upper()} chunks to files")
-
-            # Helper function to convert PCM data to MP3 chunk (only used for MP3 format)
-            async def convert_pcm_to_mp3_chunk(pcm_data, sample_rate):
-                """Convert PCM data to MP3 chunk using ffmpeg and trim padding"""
-                try:
-                    # Use ffmpeg to convert PCM to MP3
-                    ffmpeg_cmd = [
-                        'ffmpeg',
-                        '-y',  # Overwrite output files
-                        '-f', 's16le',  # Input format: 16-bit little-endian PCM
-                        '-ar', str(sample_rate),  # Input sample rate
-                        '-ac', '1',  # Mono
-                        '-i', 'pipe:0',  # Read from stdin
-                        '-c:a', 'libmp3lame',  # MP3 encoder
-                        '-b:a', '320k',  # 320 kbps
-                        '-ar', str(output_sample_rate),  # Output sample rate
-                        '-ac', '1',  # Mono output
-                        '-write_id3v1', '0',  # No ID3v1
-                        '-write_id3v2', '0',  # No ID3v2
-                        '-id3v2_version', '0',  # No ID3v2
-                        '-write_xing', '0',  # No Xing header
-                        '-fflags', '+bitexact',
-                        '-f', 'mp3',  # MP3 format
-                        'pipe:1'  # Output to stdout
-                    ]
-                    
-                    process = subprocess.Popen(
-                        ffmpeg_cmd,
-                        stdin=subprocess.PIPE,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE
-                    )
-                    
-                    mp3_data, error = process.communicate(input=pcm_data)
-                    
-                    if process.returncode != 0:
-                        print(f"[WS-TTS] FFmpeg error: {error.decode()}")
-                        return None
-                    
-                    # Trim padding from the end of MP3 chunk
-                    trimmed_mp3_data = trim_mp3_padding(mp3_data)
-                    
-                    return trimmed_mp3_data
-                except Exception as e:
-                    print(f"[WS-TTS] Error converting PCM to MP3: {e}")
-                    return None
-
-            def trim_mp3_padding(mp3_data):
-                """Remove padding bytes from the end of MP3 chunk to ensure clean frame boundaries"""
-                if len(mp3_data) < 4:
-                    return mp3_data
-                
-                # Convert to bytearray for easier manipulation
-                data = bytearray(mp3_data)
-                original_length = len(data)
-                
-                # Look for repetitive padding patterns at the end
-                # Common MP3 padding patterns: 0x55, 0xAA, 0x00, etc.
-                padding_patterns = [0x55, 0xAA, 0x00]
-                
-                # Find the last non-padding byte
-                end_pos = len(data)
-                
-                for pattern in padding_patterns:
-                    # Check if we have repetitive padding pattern at the end
-                    consecutive_count = 0
-                    pos = len(data) - 1
-                    
-                    # Count consecutive padding bytes from the end
-                    while pos >= 0 and data[pos] == pattern:
-                        consecutive_count += 1
-                        pos -= 1
-                    
-                    # If we found significant padding (more than 16 consecutive bytes)
-                    if consecutive_count > 16:
-                        potential_end = pos + 1
-                        if potential_end < end_pos:
-                            end_pos = potential_end
-                            print(f"[WS-TTS] Detected {consecutive_count} bytes of 0x{pattern:02X} padding, trimming to position {end_pos}")
-                
-                # Additional check: look for MP3 frame sync patterns to avoid cutting in the middle of frames
-                # MP3 frame sync is 0xFFF (first 11 bits), so we look for 0xFF followed by 0xF*
-                if end_pos < original_length:
-                    # Try to align to the last valid MP3 frame boundary
-                    for i in range(end_pos - 1, max(0, end_pos - 100), -1):  # Look back up to 100 bytes
-                        if i + 1 < len(data) and data[i] == 0xFF and (data[i + 1] & 0xF0) == 0xF0:
-                            # Found potential MP3 frame sync, this might be a better cut point
-                            # Look for the end of this frame
-                            frame_start = i
-                            # MP3 frame header is 4 bytes, try to find frame length
-                            if frame_start + 4 <= len(data):
-                                # For now, just cut here as it's a frame boundary
-                                end_pos = min(end_pos, frame_start + 4)
-                                print(f"[WS-TTS] Aligned to MP3 frame boundary at position {end_pos}")
-                                break
-                
-                # Trim the data
-                trimmed_data = bytes(data[:end_pos])
-                
-                if end_pos < original_length:
-                    bytes_removed = original_length - end_pos
-                    print(f"[WS-TTS] Trimmed {bytes_removed} padding bytes from MP3 chunk ({original_length} -> {end_pos} bytes)")
-                
-                return trimmed_data
 
             before_inference_time = time.time()
             elapsed_since_start = (before_inference_time - start_time) * 1000
@@ -969,7 +865,10 @@ async def websocket_tts(websocket: WebSocket):
                             # For MP3 format, PCM data will be added to mp3_handler in the processing section below
                         
                         audio_convert_time = (time.time() - audio_convert_start) * 1000
-                        print(f"[WS-TTS] 🎵 Audio to PCM conversion time: {audio_convert_time:.2f}ms, PCM buffer size: {len(pcm_buffer)} bytes")
+                        if audio_format.lower() == "pcm":
+                            print(f"[WS-TTS] 🎵 Audio to PCM conversion time: {audio_convert_time:.2f}ms, PCM buffer size: {len(pcm_buffer)} bytes")
+                        else:
+                            print(f"[WS-TTS] 🎵 Audio to PCM conversion time: {audio_convert_time:.2f}ms, MP3 processing active")
                         
                         # === PROCESS PCM BUFFER INTO CHUNKS ===
                         if audio_format.lower() == "pcm":
@@ -1028,19 +927,29 @@ async def websocket_tts(websocket: WebSocket):
                                 
                                 await asyncio.sleep(0)  # Allow other tasks
                         else:
-                            # For MP3 format, use MP3 chunks handler - Updated January 23, 2025
+                            # For MP3 format, use simplified streaming approach - Updated January 23, 2025
                             mp3_convert_start = time.time()
                             
-                            # Add PCM data to MP3 handler and get available chunks
-                            available_mp3_chunks = mp3_handler.add_pcm_data(pcm_data)
+                            # Add PCM data to MP3 handler for processing
+                            mp3_chunks = mp3_handler.add_pcm_data(pcm_data)
                             
-                            # Safety check: ensure we have a list to iterate over
-                            if available_mp3_chunks is None:
-                                available_mp3_chunks = []
+                            # Handle case where no chunks are ready yet
+                            if mp3_chunks is None:
+                                mp3_chunks = []
                             
-                            # Send each available MP3 chunk immediately
-                            for mp3_data in available_mp3_chunks:
+                            # Send any MP3 chunks that are ready
+                            for mp3_data in mp3_chunks:
                                 if mp3_data:
+                                    # Ensure data is bytes before sending
+                                    if not isinstance(mp3_data, bytes):
+                                        print(f"[WS-TTS] Warning: Converting {type(mp3_data)} to bytes")
+                                        if hasattr(mp3_data, 'tobytes'):
+                                            mp3_data = mp3_data.tobytes()
+                                        elif hasattr(mp3_data, 'getvalue'):
+                                            mp3_data = mp3_data.getvalue()
+                                        else:
+                                            mp3_data = bytes(mp3_data)
+                                    
                                     await websocket.send_bytes(mp3_data)
                                     print(f"[WS-TTS] 📦 MP3 chunk {mp3_chunk_counter} sent: {len(mp3_data)} bytes")
                                     
@@ -1068,7 +977,7 @@ async def websocket_tts(websocket: WebSocket):
                                     await asyncio.sleep(0)  # Allow other tasks
                             
                             mp3_convert_time = (time.time() - mp3_convert_start) * 1000
-                            print(f"[WS-TTS] 🎵 MP3 processing time: {mp3_convert_time:.2f}ms")
+                            print(f"[WS-TTS] 🎵 MP3 processing time: {mp3_convert_time:.2f}ms, generated {len(mp3_chunks)} chunks")
                 
                 chunk_processing_time = (time.time() - chunk_start_time) * 1000
                 total_time_so_far = (time.time() - start_time) * 1000
@@ -1123,34 +1032,53 @@ async def websocket_tts(websocket: WebSocket):
                         # Clear buffer
                         pcm_buffer.clear()
                 else:
-                    # For MP3 format, finalize the MP3 handler - Updated December 19, 2024
+                    # For MP3 format, finalize the MP3 handler to get remaining chunks - Updated January 23, 2025
                     print(f"[WS-TTS] 🔄 Finalizing MP3 processing...")
                     remaining_start = time.time()
                     
-                    # Get final MP3 chunk from handler
-                    final_mp3_data = mp3_handler.finalize()
+                    # Get all remaining MP3 chunks from handler
+                    final_mp3_chunks = mp3_handler.finalize()
                     
-                    if final_mp3_data:
-                        # Send final MP3 chunk
-                        await websocket.send_bytes(final_mp3_data)
+                    # Handle case where finalize returns None
+                    if final_mp3_chunks is None:
+                        final_mp3_chunks = []
+                    
+                    if final_mp3_chunks:
+                        for final_mp3_data in final_mp3_chunks:
+                            if final_mp3_data:
+                                # Ensure data is bytes before sending
+                                if not isinstance(final_mp3_data, bytes):
+                                    print(f"[WS-TTS] Warning: Converting {type(final_mp3_data)} to bytes")
+                                    if hasattr(final_mp3_data, 'tobytes'):
+                                        final_mp3_data = final_mp3_data.tobytes()
+                                    elif hasattr(final_mp3_data, 'getvalue'):
+                                        final_mp3_data = final_mp3_data.getvalue()
+                                    else:
+                                        final_mp3_data = bytes(final_mp3_data)
+                                
+                                # Send final MP3 chunk
+                                await websocket.send_bytes(final_mp3_data)
+                                
+                                print(f"[WS-TTS] 📦 Final MP3 chunk {mp3_chunk_counter} sent: {len(final_mp3_data)} bytes")
+                                
+                                # Save final MP3 chunk to file if requested
+                                if save_audio_files and chunk_save_folder:
+                                    chunk_filename = f"chunk_{mp3_chunk_counter}.mp3"
+                                    chunk_filepath = os.path.join(chunk_save_folder, chunk_filename)
+                                    try:
+                                        with open(chunk_filepath, 'wb') as f:
+                                            f.write(final_mp3_data)
+                                        print(f"[WS-TTS] Saved final {chunk_filename} ({len(final_mp3_data)} bytes)")
+                                    except Exception as save_error:
+                                        print(f"[WS-TTS] Error saving final chunk file: {save_error}")
+                                
+                                mp3_chunk_counter += 1
+                                await asyncio.sleep(0)  # Allow other tasks
                         
                         remaining_time = (time.time() - remaining_start) * 1000
-                        print(f"[WS-TTS] 📦 Final MP3 chunk {mp3_chunk_counter} sent: {len(final_mp3_data)} bytes, process time: {remaining_time:.2f}ms")
-                        
-                        # Save final MP3 chunk to file if requested
-                        if save_audio_files and chunk_save_folder:
-                            chunk_filename = f"chunk_{mp3_chunk_counter}.mp3"
-                            chunk_filepath = os.path.join(chunk_save_folder, chunk_filename)
-                            try:
-                                with open(chunk_filepath, 'wb') as f:
-                                    f.write(final_mp3_data)
-                                print(f"[WS-TTS] Saved final {chunk_filename} ({len(final_mp3_data)} bytes)")
-                            except Exception as save_error:
-                                print(f"[WS-TTS] Error saving final chunk file: {save_error}")
-                        
-                        mp3_chunk_counter += 1
+                        print(f"[WS-TTS] Process time: {remaining_time:.2f}ms, finalized {len(final_mp3_chunks)} chunks")
                     else:
-                        print(f"[WS-TTS] No final MP3 chunk generated")
+                        print(f"[WS-TTS] No final MP3 chunks generated")
                 
                 # Log completion timing
                 after_inference_time = time.time()
@@ -1527,6 +1455,47 @@ async def startup_event():
     print("="*50)
     print("🎯 Ready for high-performance TTS inference!")
     print("="*50 + "\n")
+
+def convert_pcm_to_mp3_chunk(pcm_data, input_sample_rate, output_sample_rate):
+    """Convert PCM chunk to MP3 using ffmpeg with proper error handling"""
+    try:
+        ffmpeg_cmd = [
+            'ffmpeg',
+            '-y',  # Overwrite output files
+            '-f', 's16le',  # Input format: 16-bit little-endian PCM
+            '-ar', str(input_sample_rate),  # Input sample rate
+            '-ac', '1',  # Mono
+            '-i', 'pipe:0',  # Read from stdin
+            '-c:a', 'libmp3lame',  # MP3 encoder
+            '-b:a', '320k',  # 320 kbps
+            '-ar', str(output_sample_rate),  # Output sample rate
+            '-ac', '1',  # Mono output
+            '-write_id3v1', '0',  # No ID3v1
+            '-write_id3v2', '0',  # No ID3v2
+            '-id3v2_version', '0',  # No ID3v2
+            '-write_xing', '0',  # No Xing header
+            '-fflags', '+bitexact',
+            '-f', 'mp3',  # MP3 format
+            'pipe:1'  # Output to stdout
+        ]
+        
+        process = subprocess.Popen(
+            ffmpeg_cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        
+        mp3_data, error = process.communicate(input=pcm_data)
+        
+        if process.returncode != 0:
+            print(f"[MP3 Convert] FFmpeg error: {error.decode()}")
+            return None
+        
+        return mp3_data
+    except Exception as e:
+        print(f"[MP3 Convert] Error converting PCM to MP3: {e}")
+        return None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='CosyVoice API Server')
