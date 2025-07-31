@@ -66,6 +66,8 @@ USAGE INSTRUCTIONS:
 import wave
 import os
 import argparse
+import subprocess
+import tempfile
 
 def convert_pcm_to_wav(pcm_file_path, wav_file_path, sample_rate=16000, channels=1, sample_width=2):
     """
@@ -122,6 +124,14 @@ def main():
     parser.add_argument('--wav-file', 
                        default='wav/pcm_chunks_combined.wav',
                        help='Output WAV file path (default: wav/pcm_chunks_combined.wav)')
+    parser.add_argument('--input-sample-rate', 
+                       type=int,
+                       default=24000,
+                       help='Input PCM sample rate in Hz (default: 24000)')
+    parser.add_argument('--output-sample-rate', 
+                       type=int,
+                       default=16000,
+                       help='Output WAV sample rate in Hz (default: 16000)')
     
     args = parser.parse_args()
     
@@ -148,8 +158,38 @@ def main():
         print(f"Error: Input file {pcm_file} not found!")
         return
     
-    # Convert the file with specified parameters: 16kHz, mono, 16-bit
-    convert_pcm_to_wav(pcm_file, wav_file, sample_rate=16000, channels=1, sample_width=2)
+    # Check if sample rate conversion is needed
+    if args.input_sample_rate == args.output_sample_rate:
+        # No conversion needed, use direct PCM to WAV conversion
+        convert_pcm_to_wav(pcm_file, wav_file, sample_rate=args.input_sample_rate, channels=1, sample_width=2)
+    else:
+        # Use ffmpeg for sample rate conversion
+        print(f"Converting sample rate from {args.input_sample_rate} Hz to {args.output_sample_rate} Hz using ffmpeg...")
+        
+        ffmpeg_cmd = [
+            'ffmpeg',
+            '-y',  # Overwrite output file
+            '-f', 's16le',  # Input format
+            '-ar', str(args.input_sample_rate),  # Input sample rate
+            '-ac', '1',  # Input channels (mono)
+            '-i', pcm_file,  # Input file
+            '-ar', str(args.output_sample_rate),  # Output sample rate
+            '-ac', '1',  # Output channels (mono)
+            wav_file
+        ]
+        
+        try:
+            result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"Error converting with ffmpeg: {result.stderr}")
+                return
+            else:
+                print(f"Successfully converted {pcm_file} to {wav_file}")
+                print(f"Sample rate converted: {args.input_sample_rate} Hz → {args.output_sample_rate} Hz")
+        except FileNotFoundError:
+            print("Error: ffmpeg is not installed or not in PATH!")
+            print("Please install ffmpeg: https://ffmpeg.org/download.html")
+            return
 
 if __name__ == "__main__":
     main()

@@ -143,14 +143,13 @@ def segment_pcm_by_volume_and_convert_to_mp3(pcm_file_path, output_dir, volume_d
         
         print(f"\nSplitting audio into chunks...")
         
-        # Split PCM at silent regions
+        # Split PCM at silent regions but preserve all samples
         chunk_num = 0
         start_byte = 0
-        edge_buffer_bytes = int(0.05 * input_pcm_sample_rate) * bytes_per_sample  # 50ms buffer
         
         for silence_start, silence_end in silent_regions:
-            # Create chunk ending at silence start
-            end_byte = min(silence_start, len(pcm_data))
+            # Create chunk ending at silence end (include the silence)
+            end_byte = min(silence_end, len(pcm_data))
             
             if end_byte > start_byte:
                 chunk_data = pcm_data[start_byte:end_byte]
@@ -165,8 +164,8 @@ def segment_pcm_by_volume_and_convert_to_mp3(pcm_file_path, output_dir, volume_d
                     if success:
                         chunk_num += 1
             
-            # Set start of next chunk after silence
-            start_byte = silence_end
+            # Set start of next chunk right after current chunk (no gap)
+            start_byte = end_byte
         
         # Create final chunk with remaining data
         if start_byte < len(pcm_data):
