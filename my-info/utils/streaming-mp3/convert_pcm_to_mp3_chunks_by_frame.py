@@ -115,42 +115,42 @@ def segment_pcm_and_convert_to_mp3(pcm_file_path, output_dir, total_frame_each_t
                     # Convert chunk to MP3 using ffmpeg
                     chunk_file = os.path.join(output_dir, f"chunk_{chunk_num}.mp3")
                     
-                    ffmpeg_cmd = [
-                        'ffmpeg',
-                        '-y',  # Overwrite output files
-                        '-f', 's16le',  # Input format
-                        '-ar', str(input_sample_rate),  # Input sample rate
-                        '-ac', str(channels),  # Input channels
+        ffmpeg_cmd = [
+            'ffmpeg',
+            '-y',  # Overwrite output files
+            '-f', 's16le',  # Input format
+            '-ar', str(input_sample_rate),  # Input sample rate
+            '-ac', str(channels),  # Input channels
                         '-i', temp_pcm_path,  # Input file
-                        '-c:a', 'libmp3lame',  # MP3 encoder
-                        '-b:a', '320k',  # 320 kbps
-                        '-ar', str(output_sample_rate),  # Resample to target rate
-                        '-ac', '1',  # Mono output
-                        '-write_id3v1', '0',  # No ID3v1
-                        '-write_id3v2', '0',  # No ID3v2
-                        '-id3v2_version', '0',  # No ID3v2
-                        '-write_xing', '0',  # No Xing header
-                        '-fflags', '+bitexact',
+            '-c:a', 'libmp3lame',  # MP3 encoder
+            '-b:a', '320k',  # 320 kbps
+            '-ar', str(output_sample_rate),  # Resample to target rate
+            '-ac', '1',  # Mono output
+            '-write_id3v1', '0',  # No ID3v1
+            '-write_id3v2', '0',  # No ID3v2
+            '-id3v2_version', '0',  # No ID3v2
+            '-write_xing', '0',  # No Xing header
+            '-fflags', '+bitexact',
                         chunk_file
-                    ]
-                    
-                    result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
-                    if result.returncode != 0:
+        ]
+        
+        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+        if result.returncode != 0:
                         print(f"Error converting chunk {chunk_num}: {result.stderr}")
-                    else:
+            else:
                         # Get output file size
                         mp3_size = os.path.getsize(chunk_file)
                         duration = actual_frames / input_sample_rate
-                        
+                
                         print(f"  ✓ Created chunk_{chunk_num}.mp3 ({mp3_size/1024:.1f} KB, {actual_frames} frames, ~{duration:.2f}s)")
-                        chunk_num += 1
+                chunk_num += 1
                 
                 finally:
                     # Clean up temporary PCM file
                     os.unlink(temp_pcm_path)
             
             current_pos = chunk_end
-        
+            
         print(f"\n✓ Created {chunk_num} frame-aligned MP3 chunks")
         print("✓ Each chunk contains exactly the specified number of frames")
         

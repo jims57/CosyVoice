@@ -81,11 +81,11 @@ def combine_mp3_chunks(chunks_dir='frames_aligned_mp3_chunks', output_file='comb
                 # Use relative path to avoid issues with spaces in paths
                 rel_path = os.path.relpath(chunk_file, script_dir)
                 f.write(f"file '{rel_path}'\n")
-        
+                    
         try:
             # Use ffmpeg to concatenate MP3 files
-            ffmpeg_cmd = [
-                'ffmpeg',
+                    ffmpeg_cmd = [
+                        'ffmpeg',
                 '-y',  # Overwrite output file
                 '-f', 'concat',  # Use concat demuxer
                 '-safe', '0',  # Allow unsafe file names
@@ -95,21 +95,21 @@ def combine_mp3_chunks(chunks_dir='frames_aligned_mp3_chunks', output_file='comb
             ]
             
             print(f"\nCombining {len(chunk_files)} chunks...")
-            result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+                    result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
             
-            if result.returncode != 0:
+                    if result.returncode != 0:
                 print(f"Error combining chunks: {result.stderr}")
                 return
             
-            # Get output file size
+                        # Get output file size
             if os.path.exists(output_path):
                 output_size = os.path.getsize(output_path)
                 print(f"\n✓ Successfully combined chunks into: {os.path.basename(output_path)}")
                 print(f"✓ Output file size: {output_size/1024/1024:.1f} MB")
             else:
                 print("Error: Output file was not created")
-        
-        finally:
+                
+                finally:
             # Clean up temporary concat file
             if os.path.exists(concat_file):
                 os.unlink(concat_file)

@@ -87,7 +87,7 @@ def convert_pcm_to_48khz_mono(pcm_file_path, input_sample_rate=16000, channels=1
             print(f"\n✓ Successfully converted to 48kHz mono PCM")
             print(f"✓ Output file: {output_filename}")
             print(f"✓ Output size: {output_size/1024/1024:.1f} MB")
-        else:
+            else:
             print("Error: Output file was not created")
         
     except Exception as e:
