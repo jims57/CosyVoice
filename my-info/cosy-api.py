@@ -601,8 +601,8 @@ async def websocket_tts(websocket: WebSocket):
             else:
                 # For MP3 format, use MP3 chunks handler - Updated January 23, 2025
                 mp3_handler = MP3ChunksHandler(
-                    input_sample_rate=MP3_INPUT_PCM_SAMPLE_RATE,
-                    output_sample_rate=output_sample_rate,  # Use user's outputSampleRate
+                    input_sample_rate=output_sample_rate,  # Use actual resampled rate (16000 Hz)
+                    output_sample_rate=output_sample_rate,  # Use user's outputSampleRate (16000 Hz)
                     volume_dB=MP3_VOLUME_DB,
                     min_samples_window=MP3_MIN_SAMPLES_WINDOW,
                     channels=1,
