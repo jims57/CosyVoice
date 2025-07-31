@@ -964,7 +964,9 @@ async def websocket_tts(websocket: WebSocket):
                             # Don't add to buffer for first chunk since we sent it immediately
                         else:
                             # Add PCM data to buffer (for non-first chunks)
-                            pcm_buffer.extend(pcm_data)
+                            if audio_format.lower() == "pcm":
+                                pcm_buffer.extend(pcm_data)
+                            # For MP3 format, PCM data will be added to mp3_handler in the processing section below
                         
                         audio_convert_time = (time.time() - audio_convert_start) * 1000
                         print(f"[WS-TTS] 🎵 Audio to PCM conversion time: {audio_convert_time:.2f}ms, PCM buffer size: {len(pcm_buffer)} bytes")
@@ -1070,6 +1072,11 @@ async def websocket_tts(websocket: WebSocket):
                             
                             mp3_convert_time = (time.time() - mp3_convert_start) * 1000
                             print(f"[WS-TTS] 🎵 MP3 processing time: {mp3_convert_time:.2f}ms")
+                
+                chunk_processing_time = (time.time() - chunk_start_time) * 1000
+                total_time_so_far = (time.time() - start_time) * 1000
+                
+                print(f"[WS-TTS] 📊 Audio chunk {chunk_count} (text chunk {chunk_idx + 1}) processed in {chunk_processing_time:.2f}ms, total time: {total_time_so_far:.2f}ms")
                 
                 # === PROCESS REMAINING PCM DATA ===
                 if audio_format.lower() == "pcm":
