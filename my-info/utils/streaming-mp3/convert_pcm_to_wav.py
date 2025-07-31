@@ -65,6 +65,7 @@ USAGE INSTRUCTIONS:
 
 import wave
 import os
+import argparse
 
 def convert_pcm_to_wav(pcm_file_path, wav_file_path, sample_rate=16000, channels=1, sample_width=2):
     """
@@ -114,27 +115,33 @@ def convert_pcm_to_wav(pcm_file_path, wav_file_path, sample_rate=16000, channels
         print(f"Error converting file: {e}")
 
 def main():
+    parser = argparse.ArgumentParser(description='Convert PCM file to WAV format')
+    parser.add_argument('--pcm-file', 
+                       default='pcm/pcm_chunks_combined.pcm',
+                       help='Input PCM file path (default: pcm/pcm_chunks_combined.pcm)')
+    parser.add_argument('--wav-file', 
+                       default='wav/pcm_chunks_combined.wav',
+                       help='Output WAV file path (default: wav/pcm_chunks_combined.wav)')
+    
+    args = parser.parse_args()
+    
     # Get the directory of this script
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Define input and output paths
-    pcm_dir = os.path.join(script_dir, 'pcm')
-    wav_dir = os.path.join(script_dir, 'wav')
+    # Handle relative paths
+    if not os.path.isabs(args.pcm_file):
+        pcm_file = os.path.join(script_dir, args.pcm_file)
+    else:
+        pcm_file = args.pcm_file
+        
+    if not os.path.isabs(args.wav_file):
+        wav_file = os.path.join(script_dir, args.wav_file)
+    else:
+        wav_file = args.wav_file
     
-    # Create wav directory if it doesn't exist
+    # Create output directory if it doesn't exist
+    wav_dir = os.path.dirname(wav_file)
     os.makedirs(wav_dir, exist_ok=True)
-    
-    # Define file paths【Jack ma】
-    # pcm_file = os.path.join(pcm_dir, 'mayun_zh.pcm')
-    # wav_file = os.path.join(wav_dir, 'mayun_zh_converted_from_pcm.wav')
-
-    # Define file paths【CosyVoice】
-    # pcm_file = os.path.join(pcm_dir, 'cosy_combined_wavs.pcm')
-    # wav_file = os.path.join(wav_dir, 'cosyvoice_converted_from_pcm.wav')
-
-    # Define file paths【CosyVoice pcm chunks】
-    pcm_file = os.path.join(pcm_dir, 'pcm_chunks_combined.pcm')
-    wav_file = os.path.join(wav_dir, 'pcm_chunks_combined.wav')
     
     # Check if input file exists
     if not os.path.exists(pcm_file):
