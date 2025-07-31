@@ -59,17 +59,16 @@ class MP3ChunksHandler:
         self.channels = channels
         self.bit_depth = bit_depth
         
-        # Buffer for accumulating PCM data
+        # Buffer for accumulating PCM data (never remove data - treat as growing PCM file)
         self.pcm_buffer = bytearray()
         
         # Convert volume_dB to amplitude threshold (same as working script)
         max_amplitude = 32767  # Maximum for 16-bit signed
         self.volume_threshold = max_amplitude * (10 ** (volume_dB / 20.0))
         
-        # Silence detection state (same as working script)
-        self.processed_samples = 0
-        self.chunk_start_sample = 0
-        self.silent_regions = []
+        # Track processing position (like a cursor in the growing PCM file)
+        self.last_chunk_end_byte = 0  # Where the last chunk ended
+        self.current_search_byte = 0  # Current search position for silence
         
         print(f"[MP3Handler] Initialized with:")
         print(f"  Input rate: {input_sample_rate} Hz")
@@ -94,9 +93,10 @@ class MP3ChunksHandler:
         mp3_chunks = []  # Always initialize as empty list
         
         # Process samples to find true silence (only convert when silence is found)
-        while len(self.pcm_buffer) >= self.min_samples_window * 2:
+        # Continue searching from where we left off (like reading a growing file)
+        while self.current_search_byte + (self.min_samples_window * 2) <= len(self.pcm_buffer):
             # Extract samples for silence detection (use original window size)
-            window_start = self.processed_samples * 2
+            window_start = self.current_search_byte
             window_end = window_start + (self.min_samples_window * 2)
             
             if window_end > len(self.pcm_buffer):
@@ -118,11 +118,10 @@ class MP3ChunksHandler:
             
             if is_silent_region:
                 # Found true silence region, create MP3 chunk ending here
-                chunk_end_sample = self.processed_samples + self.min_samples_window
+                chunk_end_byte = window_end  # End at the end of silence region
                 
                 # Calculate chunk boundaries in bytes
-                chunk_start_byte = self.chunk_start_sample * 2
-                chunk_end_byte = chunk_end_sample * 2
+                chunk_start_byte = self.last_chunk_end_byte
                 
                 # Extract chunk data (preserve all samples including silence)
                 if chunk_end_byte <= len(self.pcm_buffer):
@@ -137,21 +136,20 @@ class MP3ChunksHandler:
                             mp3_chunks.append(mp3_data)
                             print(f"[MP3Handler] Generated MP3 chunk (true silence): {len(mp3_data)} bytes ({chunk_duration:.3f}s)")
                         
-                        # Update chunk start for next chunk
-                        self.chunk_start_sample = chunk_end_sample
+                        # Update where the last chunk ended (never remove data from buffer)
+                        self.last_chunk_end_byte = chunk_end_byte
                         
-                        # Remove processed data from buffer
-                        self.pcm_buffer = self.pcm_buffer[chunk_end_byte:]
-                        self.processed_samples = 0  # Reset relative to new buffer start
+                        # Continue searching from where this chunk ended
+                        self.current_search_byte = chunk_end_byte
                         
                         continue  # Continue processing for more chunks
             
             # Move to next window
-            self.processed_samples += self.min_samples_window
+            self.current_search_byte += self.min_samples_window * 2  # Move by window size in bytes
             
             # If no silence found, don't force conversion - wait for more data
             # This allows CosyVoice time (400-1000ms) to generate more chunks
-            if self.processed_samples * 2 >= len(self.pcm_buffer) - (self.min_samples_window * 2):
+            if self.current_search_byte >= len(self.pcm_buffer) - (self.min_samples_window * 2):
                 print(f"[MP3Handler] No silence found yet, waiting for more PCM data (buffer: {len(self.pcm_buffer)} bytes)")
                 break  # Wait for more data to arrive
         
@@ -164,9 +162,9 @@ class MP3ChunksHandler:
         Returns:
             Final MP3 chunk bytes, or None if no remaining data
         """
-        # Convert any remaining PCM data to final MP3 chunk (preserve all remaining samples)
-        if len(self.pcm_buffer) > 2:
-            final_chunk_data = bytes(self.pcm_buffer)
+        # Convert any remaining PCM data after the last chunk to final MP3 chunk
+        if len(self.pcm_buffer) > self.last_chunk_end_byte + 2:  # At least one sample remaining
+            final_chunk_data = bytes(self.pcm_buffer[self.last_chunk_end_byte:])
             
             # Convert final chunk to MP3
             mp3_data = self._convert_pcm_to_mp3(final_chunk_data)
@@ -234,7 +232,6 @@ class MP3ChunksHandler:
         Reset the handler state for a new session
         """
         self.pcm_buffer.clear()
-        self.processed_samples = 0
-        self.chunk_start_sample = 0
-        self.silent_regions.clear()
+        self.last_chunk_end_byte = 0
+        self.current_search_byte = 0
         print("[MP3Handler] Handler reset for new session")
