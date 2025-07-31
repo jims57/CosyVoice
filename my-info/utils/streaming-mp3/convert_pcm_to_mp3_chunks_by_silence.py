@@ -100,6 +100,13 @@ def segment_pcm_by_volume_and_convert_to_mp3(pcm_file_path, output_dir, volume_d
         current_silence_start = -1
         silence_frame_count = 0
         
+        # Convert volume_dB to amplitude threshold
+        # For 16-bit PCM: -40dB ≈ 327, -30dB ≈ 1033, -20dB ≈ 3276
+        max_amplitude = 32767  # Maximum for 16-bit signed
+        volume_threshold = max_amplitude * (10 ** (volume_dB / 20.0))
+        
+        print(f"  Using amplitude threshold: {volume_threshold:.0f} (from {volume_dB} dB)")
+        
         for frame_idx in range(0, len(pcm_data), frame_bytes):
             frame_data = pcm_data[frame_idx:frame_idx + frame_bytes]
             if len(frame_data) < frame_bytes:
@@ -112,8 +119,8 @@ def segment_pcm_by_volume_and_convert_to_mp3(pcm_file_path, output_dir, volume_d
                 if i + 1 < len(frame_data):
                     # Read 16-bit little-endian sample
                     sample = int.from_bytes(frame_data[i:i+2], byteorder='little', signed=True)
-                    # Simple threshold: if absolute value > 1000, not silent
-                    if abs(sample) > 1000:  # Adjust this threshold as needed
+                    # Use calculated volume threshold instead of hardcoded 1000
+                    if abs(sample) > volume_threshold:
                         is_silent = False
                         break
             
