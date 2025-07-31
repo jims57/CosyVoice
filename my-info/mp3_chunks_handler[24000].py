@@ -40,15 +40,15 @@ class MP3ChunksHandler:
     """
     
     def __init__(self, input_sample_rate=24000, output_sample_rate=24000, 
-                 volume_dB=-96.0, min_samples_window=1920, channels=1, bit_depth=16):
+                 volume_dB=-35.0, min_samples_window=2400, channels=1, bit_depth=16):
         """
-        Initialize MP3 chunks handler - Optimized for deeper silence detection - Updated January 23, 2025
+        Initialize MP3 chunks handler - Optimized for fewer, better chunks - Updated January 23, 2025
         
         Args:
             input_sample_rate: Input PCM sample rate (Hz)
             output_sample_rate: Output MP3 sample rate (Hz)
-            volume_dB: Volume threshold for silence detection (dB) - Much deeper silence (-60.0)
-            min_samples_window: Minimum samples for silence window - Longer periods (1920)
+            volume_dB: Volume threshold for silence detection (dB) - Less sensitive (-35.0 vs -40.0)
+            min_samples_window: Minimum samples for silence window - Longer periods (2400 vs 960)
             channels: Audio channels (1 for mono)
             bit_depth: Bit depth (16 for 16-bit)
         """
