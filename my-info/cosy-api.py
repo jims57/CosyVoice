@@ -113,6 +113,10 @@ MP3_VOLUME_DB = -40.0  # Volume threshold for silence detection (dB)
 MP3_MIN_SAMPLES_WINDOW = 960  # Minimum samples window for silence detection
 MP3_OUTPUT_SAMPLE_RATE = 24000  # Output MP3 sample rate (Hz) - Updated to match working config
 
+# Text Splitting Configuration - Added January 23, 2025
+# Based on CosyVoice frontend.py token_max_n=80, using conservative word limit
+MAX_SENTENCE_WORDS = 50  # Maximum number of words per sentence chunk for TTS generation
+
 # API model for TTS request
 class TTSRequest(BaseModel):
     text: str
@@ -802,23 +806,52 @@ async def websocket_tts(websocket: WebSocket):
                         if rest_part.strip():
                             segments.insert(1, rest_part)
                     
-                    # Combine very short segments with the next segment for better quality
+                    # Updated: Combine segments based on word count and MAX_SENTENCE_WORDS constraint
+                    def count_words(text_segment):
+                        """Count words in a text segment"""
+                        return len(text_segment.split())
+                    
                     combined_segments = []
                     current_combined = ""
                     
                     for segment in segments:
-                        # If current segment is short (less than 5 chars) or current_combined is empty
-                        if len(segment) < 5 or not current_combined:
-                            current_combined += " " + segment if current_combined else segment
-                        else:
-                            combined_segments.append(current_combined)
+                        # If current_combined is empty, start with this segment
+                        if not current_combined:
                             current_combined = segment
+                        else:
+                            # Check if adding this segment would exceed MAX_SENTENCE_WORDS
+                            potential_combined = current_combined + " " + segment
+                            if count_words(potential_combined) <= MAX_SENTENCE_WORDS:
+                                # Safe to combine
+                                current_combined = potential_combined
+                            else:
+                                # Adding this segment would exceed limit, so finish current segment
+                                combined_segments.append(current_combined)
+                                current_combined = segment
                     
                     # Add the last combined segment if it exists
                     if current_combined:
                         combined_segments.append(current_combined)
                     
-                    return combined_segments
+                    # Handle segments that are still too long (split by words if necessary)
+                    final_segments = []
+                    for segment in combined_segments:
+                        if count_words(segment) <= MAX_SENTENCE_WORDS:
+                            final_segments.append(segment)
+                        else:
+                            # Split long segment by words
+                            words = segment.split()
+                            current_word_chunk = []
+                            for word in words:
+                                if len(current_word_chunk) < MAX_SENTENCE_WORDS:
+                                    current_word_chunk.append(word)
+                                else:
+                                    final_segments.append(' '.join(current_word_chunk))
+                                    current_word_chunk = [word]
+                            if current_word_chunk:
+                                final_segments.append(' '.join(current_word_chunk))
+                    
+                    return final_segments
                 
                 # Apply punctuation splitting to each normalized text chunk
                 final_text_chunks = []
@@ -1204,6 +1237,7 @@ async def websocket_tts(websocket: WebSocket):
                 print(f"[WS-TTS] 📋   Audio Format: {audio_format}")
                 print(f"[WS-TTS] 📋   Sample Rate: {output_sample_rate} Hz")
                 print(f"[WS-TTS] 📋   Speaker ID: {speaker_id}")
+                print(f"[WS-TTS] 📋   Text Segments: {len(normalized_text_chunks)} segments")
                 print(f"[WS-TTS] 📋   Message Headers: {'Yes' if has_message_headers else 'No'}")
                 if has_message_headers:
                     print(f"[WS-TTS] 📋   StartTimeId: {start_time_id}")
