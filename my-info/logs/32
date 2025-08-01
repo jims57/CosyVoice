@@ -1,0 +1,13 @@
+  libavfilter     7.110.100 /  7.110.100
+  libswscale      5.  9.100 /  5.  9.100
+  libswresample   3.  9.100 /  3.  9.100
+  libpostproc    55.  9.100 / 55.  9.100
+Guessed Channel Layout for Input Stream #0.0 : mono
+Input #0, s16le, from 'pipe:0':
+  Duration: N/A, bitrate: 96 kb/s
+  Stream #0:0: Audio: pcm_s16le, 6000 Hz, mono, s16, 96 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_s16le (native) -> mp3 (libmp3lame))
+[libmp3lame @ 0x5594baa9efc0] Specified sample rate 6000 is not supported
+Error initializing output stream 0:0 -- Error while opening encoder for output stream #0:0 - maybe incorrect parameters such as bit_rate, rate, width or height
+Conversion failed!
