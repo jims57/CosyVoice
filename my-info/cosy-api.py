@@ -1044,8 +1044,17 @@ async def websocket_tts(websocket: WebSocket):
                             # Send each available MP3 chunk immediately
                             for mp3_data in available_mp3_chunks:
                                 if mp3_data:
-                                    await websocket.send_bytes(mp3_data)
-                                    print(f"[WS-TTS] 📦 MP3 chunk {mp3_chunk_counter} sent: {len(mp3_data)} bytes")
+                                    # 根据是否有消息头部决定发送格式
+                                    if has_message_headers:
+                                        # 添加消息头部到MP3数据前面
+                                        header_bytes = create_header_bytes(start_time_id, message_id)
+                                        data_to_send = header_bytes + mp3_data
+                                        await websocket.send_bytes(data_to_send)
+                                        print(f"[WS-TTS] 📦 MP3 chunk {mp3_chunk_counter} sent with header: {len(header_bytes)} header + {len(mp3_data)} MP3 = {len(data_to_send)} total bytes")
+                                    else:
+                                        # 直接发送MP3数据
+                                        await websocket.send_bytes(mp3_data)
+                                        print(f"[WS-TTS] 📦 MP3 chunk {mp3_chunk_counter} sent: {len(mp3_data)} bytes")
                                     
                                     # Save MP3 chunk to file if requested
                                     if save_audio_files and chunk_save_folder:
@@ -1053,8 +1062,16 @@ async def websocket_tts(websocket: WebSocket):
                                         chunk_filepath = os.path.join(chunk_save_folder, chunk_filename)
                                         try:
                                             with open(chunk_filepath, 'wb') as f:
-                                                f.write(mp3_data)
-                                            print(f"[WS-TTS] Saved {chunk_filename} ({len(mp3_data)} bytes)")
+                                                # 保存与发送给客户端相同的数据格式
+                                                if has_message_headers:
+                                                    # 保存带头部的数据
+                                                    header_bytes = create_header_bytes(start_time_id, message_id)
+                                                    f.write(header_bytes + mp3_data)
+                                                    print(f"[WS-TTS] Saved {chunk_filename} with header ({len(header_bytes + mp3_data)} bytes)")
+                                                else:
+                                                    # 保存纯MP3数据
+                                                    f.write(mp3_data)
+                                                    print(f"[WS-TTS] Saved {chunk_filename} ({len(mp3_data)} bytes)")
                                         except Exception as save_error:
                                             print(f"[WS-TTS] Error saving chunk file: {save_error}")
                                     
@@ -1135,10 +1152,20 @@ async def websocket_tts(websocket: WebSocket):
                     
                     if final_mp3_data:
                         # Send final MP3 chunk
-                        await websocket.send_bytes(final_mp3_data)
+                        # 根据是否有消息头部决定发送格式
+                        if has_message_headers:
+                            # 添加消息头部到MP3数据前面
+                            header_bytes = create_header_bytes(start_time_id, message_id)
+                            data_to_send = header_bytes + final_mp3_data
+                            await websocket.send_bytes(data_to_send)
+                            print(f"[WS-TTS] 📦 Final MP3 chunk {mp3_chunk_counter} sent with header: {len(header_bytes)} header + {len(final_mp3_data)} MP3 = {len(data_to_send)} total bytes")
+                        else:
+                            # 直接发送MP3数据
+                            await websocket.send_bytes(final_mp3_data)
+                            print(f"[WS-TTS] 📦 Final MP3 chunk {mp3_chunk_counter} sent: {len(final_mp3_data)} bytes")
                         
                         remaining_time = (time.time() - remaining_start) * 1000
-                        print(f"[WS-TTS] 📦 Final MP3 chunk {mp3_chunk_counter} sent: {len(final_mp3_data)} bytes, process time: {remaining_time:.2f}ms")
+                        print(f"[WS-TTS] Process time: {remaining_time:.2f}ms")
                         
                         # Save final MP3 chunk to file if requested
                         if save_audio_files and chunk_save_folder:
@@ -1146,8 +1173,16 @@ async def websocket_tts(websocket: WebSocket):
                             chunk_filepath = os.path.join(chunk_save_folder, chunk_filename)
                             try:
                                 with open(chunk_filepath, 'wb') as f:
-                                    f.write(final_mp3_data)
-                                print(f"[WS-TTS] Saved final {chunk_filename} ({len(final_mp3_data)} bytes)")
+                                    # 保存与发送给客户端相同的数据格式
+                                    if has_message_headers:
+                                        # 保存带头部的数据
+                                        header_bytes = create_header_bytes(start_time_id, message_id)
+                                        f.write(header_bytes + final_mp3_data)
+                                        print(f"[WS-TTS] Saved final {chunk_filename} with header ({len(header_bytes + final_mp3_data)} bytes)")
+                                    else:
+                                        # 保存纯MP3数据
+                                        f.write(final_mp3_data)
+                                        print(f"[WS-TTS] Saved final {chunk_filename} ({len(final_mp3_data)} bytes)")
                             except Exception as save_error:
                                 print(f"[WS-TTS] Error saving final chunk file: {save_error}")
                         

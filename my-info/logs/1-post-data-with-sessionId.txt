@@ -1,0 +1,21 @@
+# message example when speakerId is integer type
+{
+     "text": "青石板上泛着水光，雨丝斜斜地织着帘子。我撑一把油纸伞，踩着湿润的石板路，听脚步声在巷子里轻轻回响。",
+     "audioFormat":"pcm",
+     "saveAudioFiles":true,
+     "speakerId":1,
+     "outputSampleRate":16000,
+     "startTimeId":1752634809864,
+     "messageId":123
+}
+
+# message example when speakerId is md5(string type)
+{
+     "text": "青石板上泛着水光，雨丝斜斜地织着帘子。我撑一把油纸伞，踩着湿润的石板路，听脚步声在巷子里轻轻回响。",
+     "audioFormat":"pcm",
+     "saveAudioFiles":true,
+     "speakerId":"90ad0c5aa2ad7a91f0abc610cdd583eb",
+     "outputSampleRate":16000,
+     "startTimeId":1752634809864,
+     "messageId":123
+}
