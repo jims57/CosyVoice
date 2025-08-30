@@ -47,7 +47,7 @@ def main():
     output_wav_path = os.path.join(combined_wav_dir, "combined_audio.wav")
     
     print("Combining all PCM chunks into a single WAV file...")
-    combine_pcm_to_wav(pcm_chunks_dir, output_wav_path, sample_rate=24000, channels=1)
+    combine_pcm_to_wav(pcm_chunks_dir, output_wav_path, sample_rate=48000, channels=1)
     print(f"Combined WAV file saved: {output_wav_path}")
 
 if __name__ == "__main__":
